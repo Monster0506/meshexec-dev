@@ -1,0 +1,72 @@
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/monster0506/mechexec/internal/config"
+)
+
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Manage configuration",
+	Long:  `Manage MechExec CLI configuration files and settings.`,
+}
+
+var configShowCmd = &cobra.Command{
+	Use:   "show",
+	Short: "Show current configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		manager := config.NewManager()
+		
+		// Get config path from global flags
+		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
+		if configPath != "" {
+			manager.SetConfigPath(configPath)
+		}
+		
+		cfg, err := manager.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Printf("Configuration loaded from: %s\n", manager.GetConfigPath())
+		fmt.Printf("Device Name: %s\n", cfg.Device.Name)
+		fmt.Printf("Device Role: %s\n", cfg.Device.Role)
+		fmt.Printf("Device OS: %s\n", cfg.Device.OS)
+		fmt.Printf("Device Arch: %s\n", cfg.Device.Arch)
+		fmt.Printf("Network TTL: %d\n", cfg.Network.TTL)
+		fmt.Printf("Network Max Peers: %d\n", cfg.Network.MaxPeers)
+		fmt.Printf("Safety Mode: %t\n", cfg.Safety.SafeMode)
+	},
+}
+
+var configInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize default configuration file",
+	Run: func(cmd *cobra.Command, args []string) {
+		manager := config.NewManager()
+		
+		// Get config path from global flags
+		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
+		if configPath != "" {
+			manager.SetConfigPath(configPath)
+		}
+		
+		err := manager.CreateDefaultConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating config: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Printf("Default configuration created at: %s\n", manager.GetConfigPath())
+	},
+}
+
+func init() {
+	configCmd.AddCommand(configShowCmd)
+	configCmd.AddCommand(configInitCmd)
+	rootCmd.AddCommand(configCmd)
+} 
