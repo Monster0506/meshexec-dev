@@ -32,23 +32,23 @@ type SecurityConfig struct {
 
 // NetworkConfig represents network-related configuration
 type NetworkConfig struct {
-	ServiceUUID     string `toml:"service_uuid" ini:"service_uuid"`
+	ServiceUUID        string `toml:"service_uuid" ini:"service_uuid"`
 	CharacteristicUUID string `toml:"characteristic_uuid" ini:"characteristic_uuid"`
-	AdvertiseInterval int    `toml:"advertise_interval" ini:"advertise_interval"`
-	ScanInterval     int    `toml:"scan_interval" ini:"scan_interval"`
-	ConnectionTimeout int    `toml:"connection_timeout" ini:"connection_timeout"`
-	MaxPeers         int    `toml:"max_peers" ini:"max_peers"`
-	TTL              int    `toml:"ttl" ini:"ttl"`
+	AdvertiseInterval  int    `toml:"advertise_interval" ini:"advertise_interval"`
+	ScanInterval       int    `toml:"scan_interval" ini:"scan_interval"`
+	ConnectionTimeout  int    `toml:"connection_timeout" ini:"connection_timeout"`
+	MaxPeers           int    `toml:"max_peers" ini:"max_peers"`
+	TTL                int    `toml:"ttl" ini:"ttl"`
 }
 
 // SafetyConfig represents safety-related configuration
 type SafetyConfig struct {
-	SafeMode        bool     `toml:"safe_mode" ini:"safe_mode"`
+	SafeMode          bool     `toml:"safe_mode" ini:"safe_mode"`
 	DangerousCommands []string `toml:"dangerous_commands" ini:"dangerous_commands"`
-	AllowedCommands  []string `toml:"allowed_commands" ini:"allowed_commands"`
-	DeniedCommands   []string `toml:"denied_commands" ini:"denied_commands"`
-	MaxCommandLength int      `toml:"max_command_length" ini:"max_command_length"`
-	ExecutionTimeout int      `toml:"execution_timeout" ini:"execution_timeout"`
+	AllowedCommands   []string `toml:"allowed_commands" ini:"allowed_commands"`
+	DeniedCommands    []string `toml:"denied_commands" ini:"denied_commands"`
+	MaxCommandLength  int      `toml:"max_command_length" ini:"max_command_length"`
+	ExecutionTimeout  int      `toml:"execution_timeout" ini:"execution_timeout"`
 }
 
 // LoggingConfig represents logging-related configuration
@@ -88,8 +88,8 @@ func DefaultConfig() *Config {
 			AdvertiseInterval:  1000,
 			ScanInterval:       1000,
 			ConnectionTimeout:  5000,
-			MaxPeers:          10,
-			TTL:               5,
+			MaxPeers:           10,
+			TTL:                5,
 		},
 		Safety: SafetyConfig{
 			SafeMode:          true,
@@ -109,4 +109,4 @@ func DefaultConfig() *Config {
 			Compress:   true,
 		},
 	}
-} 
+}

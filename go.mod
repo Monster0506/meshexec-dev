@@ -7,6 +7,7 @@ toolchain go1.23.11
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
