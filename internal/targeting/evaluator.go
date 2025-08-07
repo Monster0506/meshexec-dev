@@ -6,35 +6,69 @@ import (
 	"unicode"
 
 	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/mechexec/internal/logging"
 )
 
 // Evaluator implements the TargetEvaluator interface
-type Evaluator struct{}
+type Evaluator struct{
+	logger *logging.Logger
+}
 
 // NewEvaluator creates a new target expression evaluator
 func NewEvaluator() *Evaluator {
-	return &Evaluator{}
+	return &Evaluator{
+		logger: logging.NewLogger("info"),
+	}
 }
 
 // Evaluate evaluates a target expression against device information
 func (e *Evaluator) Evaluate(expression string, device *internal.DeviceInfo) (bool, error) {
 	if device == nil {
+		e.logger.Error("Device info is nil", fmt.Errorf("device info cannot be nil"), nil)
 		return false, fmt.Errorf("device info cannot be nil")
 	}
 
 	// Handle special case "all"
 	if strings.TrimSpace(strings.ToLower(expression)) == "all" {
+		e.logger.Debug("Evaluating 'all' target", map[string]interface{}{
+			"expression": expression,
+			"device":     device.Name,
+		})
 		return true, nil
 	}
+
+	e.logger.Debug("Evaluating target expression", map[string]interface{}{
+		"expression": expression,
+		"device":     device.Name,
+		"device_os":  device.OS,
+		"device_arch": device.Arch,
+	})
 
 	// Parse the expression into an AST
 	ast, err := e.Parse(expression)
 	if err != nil {
+		e.logger.Error("Failed to parse expression", err, map[string]interface{}{
+			"expression": expression,
+		})
 		return false, fmt.Errorf("failed to parse expression: %w", err)
 	}
 
 	// Evaluate the AST
-	return e.evaluateAST(ast, device)
+	result, err := e.evaluateAST(ast, device)
+	if err != nil {
+		e.logger.Error("Failed to evaluate AST", err, map[string]interface{}{
+			"expression": expression,
+		})
+		return false, err
+	}
+
+	e.logger.Debug("Target evaluation result", map[string]interface{}{
+		"expression": expression,
+		"result":     result,
+		"device":     device.Name,
+	})
+
+	return result, nil
 }
 
 // Parse parses a target expression into an abstract syntax tree

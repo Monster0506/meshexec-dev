@@ -7,14 +7,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/mechexec/internal/logging"
 )
 
 // MessageHandler provides utilities for creating, serializing, and validating messages
-type MessageHandler struct{}
+type MessageHandler struct{
+	logger *logging.Logger
+}
 
 // NewMessageHandler creates a new message handler
 func NewMessageHandler() *MessageHandler {
-	return &MessageHandler{}
+	return &MessageHandler{
+		logger: logging.NewLogger("info"),
+	}
 }
 
 // CreateCommandMessage creates a new command message
@@ -40,6 +45,15 @@ func (h *MessageHandler) CreateCommandMessage(
 		WorkDir:   workDir,
 		Timeout:   timeout,
 	}
+
+	h.logger.Debug("Created command message", map[string]interface{}{
+		"message_id": msg.ID,
+		"command":    command,
+		"sender":     sender,
+		"targets":    target,
+		"timeout":    timeout,
+	})
+
 	return msg
 }
 
@@ -91,48 +105,97 @@ func (h *MessageHandler) CreatePongMessage(pingID string, sender string) *intern
 
 // SerializeMessage serializes a message to JSON
 func (h *MessageHandler) SerializeMessage(msg interface{}) ([]byte, error) {
+	h.logger.Debug("Serializing message", map[string]interface{}{
+		"message_type": fmt.Sprintf("%T", msg),
+	})
+
 	data, err := json.Marshal(msg)
 	if err != nil {
+		h.logger.Error("Failed to serialize message", err, map[string]interface{}{
+			"message_type": fmt.Sprintf("%T", msg),
+		})
 		return nil, fmt.Errorf("failed to serialize message: %w", err)
 	}
+
+	h.logger.Debug("Message serialized successfully", map[string]interface{}{
+		"message_type": fmt.Sprintf("%T", msg),
+		"data_length":  len(data),
+	})
+
 	return data, nil
 }
 
 // DeserializeMessage deserializes a JSON message to the appropriate type
 func (h *MessageHandler) DeserializeMessage(data []byte) (interface{}, error) {
+	h.logger.Debug("Deserializing message", map[string]interface{}{
+		"data_length": len(data),
+	})
+
 	// First, try to determine the message type
 	var baseMsg struct {
 		Type internal.MessageType `json:"type"`
 	}
 
 	if err := json.Unmarshal(data, &baseMsg); err != nil {
+		h.logger.Error("Failed to determine message type", err, map[string]interface{}{
+			"data_length": len(data),
+		})
 		return nil, fmt.Errorf("failed to determine message type: %w", err)
 	}
+
+	h.logger.Debug("Determined message type", map[string]interface{}{
+		"message_type": baseMsg.Type,
+		"data_length":  len(data),
+	})
 
 	// Deserialize based on message type
 	switch baseMsg.Type {
 	case internal.MessageTypeCommand:
 		var msg internal.CommandMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
+			h.logger.Error("Failed to deserialize command message", err, map[string]interface{}{
+				"message_type": baseMsg.Type,
+			})
 			return nil, fmt.Errorf("failed to deserialize command message: %w", err)
 		}
+		h.logger.Debug("Deserialized command message", map[string]interface{}{
+			"message_id": msg.ID,
+			"command":    msg.Command,
+		})
 		return &msg, nil
 
 	case internal.MessageTypeResult:
 		var msg internal.ResultMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
+			h.logger.Error("Failed to deserialize result message", err, map[string]interface{}{
+				"message_type": baseMsg.Type,
+			})
 			return nil, fmt.Errorf("failed to deserialize result message: %w", err)
 		}
+		h.logger.Debug("Deserialized result message", map[string]interface{}{
+			"message_id": msg.ID,
+			"command_id": msg.CommandID,
+		})
 		return &msg, nil
 
 	case internal.MessageTypePing, internal.MessageTypePong:
 		var msg internal.MeshMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
+			h.logger.Error("Failed to deserialize mesh message", err, map[string]interface{}{
+				"message_type": baseMsg.Type,
+			})
 			return nil, fmt.Errorf("failed to deserialize mesh message: %w", err)
 		}
+		h.logger.Debug("Deserialized mesh message", map[string]interface{}{
+			"message_id": msg.ID,
+			"message_type": msg.Type,
+		})
 		return &msg, nil
 
 	default:
+		h.logger.Error("Unknown message type", fmt.Errorf("unknown message type: %s", baseMsg.Type), map[string]interface{}{
+			"message_type": baseMsg.Type,
+		})
 		return nil, fmt.Errorf("unknown message type: %s", baseMsg.Type)
 	}
 }

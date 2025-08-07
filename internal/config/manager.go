@@ -12,6 +12,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/mechexec/internal/logging"
 )
 
 // Manager implements the ConfigManager interface
@@ -20,38 +21,66 @@ type Manager struct {
 	config   *internal.Config
 	watcher  *fsnotify.Watcher
 	configPath string
+	logger   *logging.Logger
 }
 
 // NewManager creates a new configuration manager
 func NewManager() *Manager {
 	return &Manager{
 		viper: viper.New(),
+		logger: logging.NewLogger("info"),
 	}
 }
 
 // Load loads configuration from file or returns default configuration
 func (m *Manager) Load() (*internal.Config, error) {
+	m.logger.Debug("Loading configuration", map[string]interface{}{
+		"config_path": m.configPath,
+	})
+
 	// If a specific config path is set, try to load it directly
 	if m.configPath != "" {
 		if _, err := os.Stat(m.configPath); err == nil {
+			m.logger.Debug("Loading configuration from specified path", map[string]interface{}{
+				"path": m.configPath,
+			})
+			
 			// File exists, try to load it
 			data, err := os.ReadFile(m.configPath)
 			if err != nil {
+				m.logger.Error("Failed to read config file", err, map[string]interface{}{
+					"path": m.configPath,
+				})
 				return nil, fmt.Errorf("failed to read config file: %w", err)
 			}
 
 			var config internal.Config
 			if err := toml.Unmarshal(data, &config); err != nil {
+				m.logger.Error("Failed to unmarshal config", err, map[string]interface{}{
+					"path": m.configPath,
+				})
 				return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 			}
 
 			// Validate configuration
 			if err := m.validateConfig(&config); err != nil {
+				m.logger.Error("Config validation failed", err, map[string]interface{}{
+					"path": m.configPath,
+				})
 				return nil, fmt.Errorf("config validation failed: %w", err)
 			}
 
 			m.config = &config
+			m.logger.Info("Configuration loaded successfully", map[string]interface{}{
+				"path": m.configPath,
+				"device_name": config.Device.Name,
+				"device_role": config.Device.Role,
+			})
 			return &config, nil
+		} else {
+			m.logger.Warn("Specified config file does not exist", map[string]interface{}{
+				"path": m.configPath,
+			})
 		}
 	}
 
@@ -62,56 +91,92 @@ func (m *Manager) Load() (*internal.Config, error) {
 	if err := m.viper.ReadInConfig(); err != nil {
 		// If config file doesn't exist, return default config
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			m.logger.Info("No config file found, using default configuration", nil)
 			config := internal.DefaultConfig()
 			m.config = config
 			return config, nil
 		}
+		m.logger.Error("Failed to read config file", err, nil)
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	configFile := m.viper.ConfigFileUsed()
+	m.logger.Debug("Found config file", map[string]interface{}{
+		"path": configFile,
+	})
 
 	// Use direct TOML unmarshaling instead of viper's unmarshaling
 	// This is because viper has issues with nested TOML structures
 	data, err := os.ReadFile(configFile)
 	if err != nil {
+		m.logger.Error("Failed to read config file", err, map[string]interface{}{
+			"path": configFile,
+		})
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	var config internal.Config
 	if err := toml.Unmarshal(data, &config); err != nil {
+		m.logger.Error("Failed to unmarshal config", err, map[string]interface{}{
+			"path": configFile,
+		})
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	// Validate configuration
 	if err := m.validateConfig(&config); err != nil {
+		m.logger.Error("Config validation failed", err, map[string]interface{}{
+			"path": configFile,
+		})
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	m.config = &config
+	m.logger.Info("Configuration loaded successfully", map[string]interface{}{
+		"path": configFile,
+		"device_name": config.Device.Name,
+		"device_role": config.Device.Role,
+	})
 	return &config, nil
 }
 
 // Save saves configuration to file
 func (m *Manager) Save(config *internal.Config) error {
+	configPath := m.getConfigPath()
+	m.logger.Debug("Saving configuration", map[string]interface{}{
+		"path": configPath,
+		"device_name": config.Device.Name,
+	})
+
 	// Ensure config directory exists
-	configDir := filepath.Dir(m.getConfigPath())
+	configDir := filepath.Dir(configPath)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
+		m.logger.Error("Failed to create config directory", err, map[string]interface{}{
+			"directory": configDir,
+		})
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// Convert config to TOML
 	data, err := toml.Marshal(config)
 	if err != nil {
+		m.logger.Error("Failed to marshal config", err, nil)
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
 	// Write to file
-	if err := os.WriteFile(m.getConfigPath(), data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		m.logger.Error("Failed to write config file", err, map[string]interface{}{
+			"path": configPath,
+		})
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	m.config = config
+	m.logger.Info("Configuration saved successfully", map[string]interface{}{
+		"path": configPath,
+		"device_name": config.Device.Name,
+	})
 	return nil
 }
 
@@ -119,9 +184,12 @@ func (m *Manager) Save(config *internal.Config) error {
 func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 	configChan := make(chan *internal.Config, 1)
 
+	m.logger.Debug("Starting configuration file watcher", nil)
+
 	// Create file watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
+		m.logger.Error("Failed to create file watcher", err, nil)
 		return nil, fmt.Errorf("failed to create file watcher: %w", err)
 	}
 
@@ -131,39 +199,62 @@ func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 	configDir := filepath.Dir(m.getConfigPath())
 	if err := watcher.Add(configDir); err != nil {
 		watcher.Close()
+		m.logger.Error("Failed to watch config directory", err, map[string]interface{}{
+			"directory": configDir,
+		})
 		return nil, fmt.Errorf("failed to watch config directory: %w", err)
 	}
+
+	m.logger.Info("Configuration file watcher started", map[string]interface{}{
+		"directory": configDir,
+	})
 
 	go func() {
 		defer watcher.Close()
 		defer close(configChan)
+		defer m.logger.Debug("Configuration file watcher stopped", nil)
 
 		for {
 			select {
 			case <-ctx.Done():
+				m.logger.Debug("Configuration file watcher context cancelled", nil)
 				return
 			case event, ok := <-watcher.Events:
 				if !ok {
+					m.logger.Debug("Configuration file watcher events channel closed", nil)
 					return
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					if strings.HasSuffix(event.Name, ".toml") || strings.HasSuffix(event.Name, ".ini") {
+						m.logger.Debug("Configuration file changed, reloading", map[string]interface{}{
+							"file": event.Name,
+							"operation": event.Op.String(),
+						})
 						// Reload configuration
 						if config, err := m.Load(); err == nil {
 							select {
 							case configChan <- config:
+								m.logger.Info("Configuration reloaded and sent to channel", map[string]interface{}{
+									"file": event.Name,
+									"device_name": config.Device.Name,
+								})
 							case <-ctx.Done():
 								return
 							}
+						} else {
+							m.logger.Error("Failed to reload configuration", err, map[string]interface{}{
+								"file": event.Name,
+							})
 						}
 					}
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
+					m.logger.Debug("Configuration file watcher errors channel closed", nil)
 					return
 				}
 				// Log error but continue watching
-				fmt.Printf("Config watcher error: %v\n", err)
+				m.logger.Error("Config watcher error", err, nil)
 			}
 		}
 	}()
@@ -339,6 +430,7 @@ func (m *Manager) GetConfigPath() string {
 
 // CreateDefaultConfig creates a default configuration file
 func (m *Manager) CreateDefaultConfig() error {
+	m.logger.Info("Creating default configuration file", nil)
 	config := internal.DefaultConfig()
 	return m.Save(config)
 } 

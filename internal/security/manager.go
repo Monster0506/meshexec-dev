@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/mechexec/internal/logging"
 )
 
 // SecurityManager handles cryptographic operations for message signing and verification
@@ -18,22 +19,33 @@ type SecurityManager struct {
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
 	keyPath    string
+	logger     *logging.Logger
 }
 
 // NewSecurityManager creates a new security manager
 func NewSecurityManager() *SecurityManager {
-	return &SecurityManager{}
+	return &SecurityManager{
+		logger: logging.NewLogger("info"),
+	}
 }
 
 // GenerateKeyPair generates a new ed25519 key pair
 func (sm *SecurityManager) GenerateKeyPair() error {
+	sm.logger.Debug("Generating new ed25519 key pair", nil)
+	
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
+		sm.logger.Error("Failed to generate key pair", err, nil)
 		return fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
 	sm.publicKey = publicKey
 	sm.privateKey = privateKey
+
+	sm.logger.Info("Key pair generated successfully", map[string]interface{}{
+		"public_key_length": len(publicKey),
+		"private_key_length": len(privateKey),
+	})
 
 	return nil
 }
@@ -41,28 +53,48 @@ func (sm *SecurityManager) GenerateKeyPair() error {
 // LoadKeys loads keys from the specified path
 func (sm *SecurityManager) LoadKeys(keyPath string) error {
 	sm.keyPath = keyPath
+	sm.logger.Debug("Loading keys from path", map[string]interface{}{
+		"key_path": keyPath,
+	})
 
 	// Try to load existing keys
 	if err := sm.loadExistingKeys(); err != nil {
 		// If keys don't exist, generate new ones
 		if os.IsNotExist(err) {
+			sm.logger.Info("Keys not found, generating new key pair", map[string]interface{}{
+				"key_path": keyPath,
+			})
 			return sm.generateAndSaveKeys()
 		}
+		sm.logger.Error("Failed to load existing keys", err, map[string]interface{}{
+			"key_path": keyPath,
+		})
 		return err
 	}
 
+	sm.logger.Info("Keys loaded successfully", map[string]interface{}{
+		"key_path": keyPath,
+	})
 	return nil
 }
 
 // SaveKeys saves the current keys to the specified path
 func (sm *SecurityManager) SaveKeys(keyPath string) error {
+	sm.logger.Debug("Saving keys to path", map[string]interface{}{
+		"key_path": keyPath,
+	})
+
 	if sm.privateKey == nil || sm.publicKey == nil {
+		sm.logger.Error("No keys to save", fmt.Errorf("no keys to save"), nil)
 		return fmt.Errorf("no keys to save")
 	}
 
 	// Create directory if it doesn't exist
 	keyDir := filepath.Dir(keyPath)
 	if err := os.MkdirAll(keyDir, 0700); err != nil {
+		sm.logger.Error("Failed to create key directory", err, map[string]interface{}{
+			"directory": keyDir,
+		})
 		return fmt.Errorf("failed to create key directory: %w", err)
 	}
 
@@ -70,6 +102,9 @@ func (sm *SecurityManager) SaveKeys(keyPath string) error {
 	privateKeyData := base64.StdEncoding.EncodeToString(sm.privateKey)
 	privateKeyPath := keyPath + ".private"
 	if err := os.WriteFile(privateKeyPath, []byte(privateKeyData), 0600); err != nil {
+		sm.logger.Error("Failed to save private key", err, map[string]interface{}{
+			"path": privateKeyPath,
+		})
 		return fmt.Errorf("failed to save private key: %w", err)
 	}
 
@@ -77,8 +112,16 @@ func (sm *SecurityManager) SaveKeys(keyPath string) error {
 	publicKeyData := base64.StdEncoding.EncodeToString(sm.publicKey)
 	publicKeyPath := keyPath + ".public"
 	if err := os.WriteFile(publicKeyPath, []byte(publicKeyData), 0644); err != nil {
+		sm.logger.Error("Failed to save public key", err, map[string]interface{}{
+			"path": publicKeyPath,
+		})
 		return fmt.Errorf("failed to save public key: %w", err)
 	}
+
+	sm.logger.Info("Keys saved successfully", map[string]interface{}{
+		"private_key_path": privateKeyPath,
+		"public_key_path":  publicKeyPath,
+	})
 
 	return nil
 }
@@ -86,12 +129,18 @@ func (sm *SecurityManager) SaveKeys(keyPath string) error {
 // SignMessage signs a message with the private key
 func (sm *SecurityManager) SignMessage(msg interface{}) (string, error) {
 	if sm.privateKey == nil {
+		sm.logger.Error("Private key not loaded", fmt.Errorf("private key not loaded"), nil)
 		return "", fmt.Errorf("private key not loaded")
 	}
+
+	sm.logger.Debug("Signing message", map[string]interface{}{
+		"message_type": fmt.Sprintf("%T", msg),
+	})
 
 	// Serialize the message to JSON for signing
 	data, err := json.Marshal(msg)
 	if err != nil {
+		sm.logger.Error("Failed to serialize message", err, nil)
 		return "", fmt.Errorf("failed to serialize message: %w", err)
 	}
 
@@ -99,7 +148,13 @@ func (sm *SecurityManager) SignMessage(msg interface{}) (string, error) {
 	signature := ed25519.Sign(sm.privateKey, data)
 
 	// Return base64 encoded signature
-	return base64.StdEncoding.EncodeToString(signature), nil
+	signatureStr := base64.StdEncoding.EncodeToString(signature)
+	sm.logger.Debug("Message signed successfully", map[string]interface{}{
+		"signature_length": len(signature),
+		"data_length":      len(data),
+	})
+
+	return signatureStr, nil
 }
 
 // VerifyMessage verifies a message signature with the public key
