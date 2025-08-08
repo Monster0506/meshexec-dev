@@ -121,7 +121,7 @@
     - _Requirements: 1.1, 1.2, 1.3, 4.3, 4.4_
 
 - [ ] 9. Implement CLI frontend commands
-  - [ ] 9.1 Create basic CLI structure with Cobra
+  - [x] 9.1 Create basic CLI structure with Cobra
     - Set up main CLI application with cobra framework
     - Implement basic command structure (run, join, list, status, tui)
     - Add global flags and configuration loading
@@ -142,7 +142,7 @@
     - Write unit tests for network management commands
     - _Requirements: 2.1, 6.1, 6.2, 6.3_
 
-- [x] 10. Implement terminal UI dashboard
+- [ ] 10. Implement terminal UI dashboard
   - [x] 10.1 Create TUI framework with bubbletea
     - Set up bubbletea-based terminal UI with multiple views
     - Implement real-time peer list and network status display
@@ -150,7 +150,7 @@
     - Write unit tests for TUI components
     - _Requirements: 6.4_
 
-  - [x] 10.2 Integrate TUI with live data updates
+  - [ ] 10.2 Integrate TUI with live data updates
     - Connect TUI to agent for real-time network and execution updates
     - Add interactive command execution from TUI interface
     - Implement result filtering and search functionality
