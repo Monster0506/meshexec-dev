@@ -6,7 +6,7 @@
   - Set up go.mod with required dependencies (cobra, viper, toml, uuid, crypto, bubbletea, zerolog)
   - _Requirements: 1.1, 2.1, 8.1_
 
-- [x] 2. Implement configuration management system ✅
+- [x] 2. Implement configuration management system
   - [x] 2.1 Create configuration data structures and parsing
     - Implement Config, DeviceConfig, SecurityConfig, NetworkConfig, and SafetyConfig structs
     - Write TOML file parsing using viper and BurntSushi/toml
@@ -20,7 +20,7 @@
     - Create unit tests for configuration loading and file watching on both platforms
     - _Requirements: 8.1, 8.2_
 
-- [x] 3. Implement core data models and message handling ✅
+- [x] 3. Implement core data models and message handling
   - [x] 3.1 Create mesh message data structures
     - Implement MeshMessage, CommandMessage, ResultMessage, and ExecutionResult structs
     - Add JSON serialization/deserialization with proper field tags
@@ -58,7 +58,7 @@
     - Write unit tests for command execution on both Windows and Unix platforms
     - _Requirements: 1.2, 1.3, 1.4_
 
-  - [ ] 5.2 Implement command safety and filtering
+  - [x] 5.2 Implement command safety and filtering
     - Add command validation for dangerous operations (rm -rf on Unix, del /s on Windows, etc.)
     - Implement platform-specific dangerous command detection (PowerShell, cmd.exe, bash)
     - Implement allow/deny list checking from configuration
@@ -165,7 +165,7 @@
     - Write unit tests for error handling scenarios
     - _Requirements: 1.4, 3.3, 7.4, 9.4_
 
-  - [x] 11.2 Implement structured logging system ✅
+  - [x] 11.2 Implement structured logging system
     - Set up zerolog-based logging with configurable levels
     - Add logging throughout all components with appropriate levels
     - Implement log rotation and configuration options

@@ -111,6 +111,42 @@ MeshExec does not use standard Bluetooth Mesh profiles. Instead, it implements a
 
 ---
 
+## 🛡️ Command Safety (Safe Mode)
+
+Safe Mode prevents dangerous or destructive commands from being executed accidentally or maliciously.
+
+What it enforces
+- Max command length: rejects overly long inputs (configured via `safety.max_command_length`).
+- Dangerous command blocking (OS‑aware):
+  - Unix: patterns like `rm -rf`, `dd if=`, `mkfs`, `shutdown`, `poweroff`, recursive `chmod 000 /`, and loose fork‑bomb forms.
+  - Windows: `del /s`, `rd /s /q`, `format`, `bcdedit`, `shutdown`, `cipher /w`, plus PowerShell cmdlets like `Remove-Item -Recurse -Force`.
+- Wrapper detection: flags dangerous payloads passed via shells (e.g. `sh -c "rm -rf /"`, `powershell -Command "Remove-Item -Recurse"`).
+- Customization: extend via `safety.dangerous_commands` (flexible whitespace is allowed between tokens).
+
+Configuration (TOML)
+```toml
+[safety]
+safe_mode = true               # enable/disable safety enforcement
+max_command_length = 1024      # reject commands longer than this
+dangerous_commands = [         # optional additions/overrides
+  "shutdown",
+  "format",
+]
+```
+
+CLI usage
+- Prefer preview: `mechexec run --dry-run -- <cmd>`
+- Enforce explicitly: `mechexec run --safe-mode -- <cmd>`
+
+Logging & visibility
+- When a command is blocked, a warning is logged (pattern and reason). Increase verbosity with `-v`.
+
+Notes & limitations
+- Matching is defensive and token‑anchored but does not fully parse shell syntax. Extremely obfuscated inputs may still bypass; use dry‑run and reviews for critical environments.
+- Patterns are OS‑aware; when executing on remote devices in future mesh modes, ensure the remote OS context is used.
+
+---
+
 ## 🧪 Examples
 
 | Command                                           | Description                            |
