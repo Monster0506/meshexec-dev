@@ -73,9 +73,28 @@ var configEditCmd = &cobra.Command{
         fmt.Fprintln(os.Stderr, "Config edit is not implemented yet.")
     },
 }
+
+var configValidateCmd = &cobra.Command{
+    Use:   "validate",
+    Short: "Validate configuration file",
+    Run: func(cmd *cobra.Command, args []string) {
+        manager := config.NewManager()
+        configPath, _ := cmd.Root().PersistentFlags().GetString("config")
+        if configPath != "" {
+            manager.SetConfigPath(configPath)
+        }
+        if _, err := manager.Load(); err != nil {
+            fmt.Fprintf(os.Stderr, "Configuration invalid: %v\n", err)
+            os.Exit(1)
+        }
+        fmt.Println("Configuration is valid.")
+    },
+}
+
 func init() {
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configInitCmd)
     configCmd.AddCommand(configEditCmd)
+    configCmd.AddCommand(configValidateCmd)
 	rootCmd.AddCommand(configCmd)
 } 
