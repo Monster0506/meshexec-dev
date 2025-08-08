@@ -49,7 +49,7 @@
     - Write unit tests for device matching scenarios
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 5. Implement command execution system
+- [x] 5. Implement command execution system
   - [x] 5.1 Create command executor with cross-platform shell integration
     - Implement CommandExecutor interface using os/exec package with Windows/Unix shell detection
     - Execute commands with cmd.exe on Windows and /bin/sh on Unix systems
@@ -84,7 +84,7 @@
     - _Requirements: 2.1, 2.3, 2.4_
 
 - [ ] 7. Implement mesh networking layer
-  - [ ] 7.1 Create mesh node with peer management
+  - [x] 7.1 Create mesh node with peer management
     - Implement MeshNode interface with Start, Stop, SendMessage methods
     - Add peer discovery, connection tracking, and topology management
     - Implement message subscription system for different message types
