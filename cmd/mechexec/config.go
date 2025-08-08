@@ -65,8 +65,17 @@ var configInitCmd = &cobra.Command{
 	},
 }
 
+var configEditCmd = &cobra.Command{
+    Use:   "edit",
+    Short: "Open configuration in default editor",
+    Run: func(cmd *cobra.Command, args []string) {
+        // Stub implementation
+        fmt.Fprintln(os.Stderr, "Config edit is not implemented yet.")
+    },
+}
 func init() {
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configInitCmd)
+    configCmd.AddCommand(configEditCmd)
 	rootCmd.AddCommand(configCmd)
 } 
