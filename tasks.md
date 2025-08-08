@@ -50,7 +50,7 @@
     - _Requirements: 4.1, 4.2, 4.3_
 
 - [ ] 5. Implement command execution system
-  - [ ] 5.1 Create command executor with cross-platform shell integration
+  - [x] 5.1 Create command executor with cross-platform shell integration
     - Implement CommandExecutor interface using os/exec package with Windows/Unix shell detection
     - Execute commands with cmd.exe on Windows and /bin/sh on Unix systems
     - Add platform-specific command handling and path resolution
@@ -58,7 +58,7 @@
     - Write unit tests for command execution on both Windows and Unix platforms
     - _Requirements: 1.2, 1.3, 1.4_
 
-  - [ ] 5.2 Implement command safety and filtering
+  - [x] 5.2 Implement command safety and filtering
     - Add command validation for dangerous operations (rm -rf on Unix, del /s on Windows, etc.)
     - Implement platform-specific dangerous command detection (PowerShell, cmd.exe, bash)
     - Implement allow/deny list checking from configuration
@@ -67,7 +67,7 @@
     - _Requirements: 7.2, 7.3, 7.4, 7.1_
 
 - [ ] 6. Implement Bluetooth LE transport layer
-  - [ ] 6.1 Create BLE transport interface and basic operations
+  - [x] 6.1 Create BLE transport interface and basic operations
     - Implement BLETransport interface with Advertise, Scan, and Connect methods
     - Use native Go Bluetooth libraries (e.g., tinygo.org/x/bluetooth or go-ble/ble) for cross-platform support
     - Set up GATT service creation and characteristic handling using Go bindings
