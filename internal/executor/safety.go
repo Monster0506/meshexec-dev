@@ -51,7 +51,7 @@ func (s *SafetyChecker) compilePatterns() {
 	} else {
 		raw = append(raw,
 			`(?:(?:^|\s))(?:rm)\s+-rf(?:(?:\s|$))`,
-			`(?:(?:^|\s))(?:dd)\s+if=(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:dd)\s+if=[^-\s]*(?:(?:\s|$))`,
 			`(?:(?:^|\s))(?:shutdown)(?:(?:\s|$))`,
 			`(?:(?:^|\s))(?:poweroff)(?:(?:\s|$))`,
 			`(?:(?:^|\s))(?:mkfs)(?:(?:\s|$))`,
