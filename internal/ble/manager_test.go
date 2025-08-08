@@ -5,7 +5,7 @@ import (
     "testing"
     "time"
 
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 type mockTransport struct {

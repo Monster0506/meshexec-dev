@@ -10,7 +10,7 @@ import (
     "sync"
     "time"
 
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // Transport is a minimal in-memory implementation of core.BLETransport.
@@ -39,7 +39,7 @@ type Transport struct {
 
 // NewTransport creates a new simulated BLE transport.
 func NewTransport() *Transport {
-    name := hostnameOrDefault("mechexec")
+    name := hostnameOrDefault("meshexec")
     return &Transport{
         localAddress:      randomMAC(),
         localName:         name,
@@ -159,7 +159,7 @@ func (t *Transport) broadcastAdvertisement(addr, name string, serviceData []byte
         Address: addr,
         Name:    name,
         ServiceData: map[string][]byte{
-            "mechexec": append([]byte(nil), serviceData...),
+            "meshexec": append([]byte(nil), serviceData...),
         },
         RSSI:      rssi,
         Timestamp: time.Now(),

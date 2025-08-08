@@ -9,7 +9,7 @@ import (
     "time"
 
     goble "github.com/go-ble/ble"
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // nativeTransport is a go-ble backed implementation of core.BLETransport.
@@ -46,7 +46,7 @@ func (t *nativeTransport) Advertise(ctx context.Context, serviceData []byte) err
         su = core.DefaultConfig().Network.ServiceUUID
     }
     svcUUID := goble.MustParse(su)
-    name := "mechexec"
+    name := "meshexec"
     // This call blocks until ctx is canceled
     return goble.AdvertiseNameAndServices(ctx, name, svcUUID)
 }

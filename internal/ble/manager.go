@@ -5,7 +5,7 @@ import (
     "sync"
     "time"
 
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // Manager provides a unified interface for device discovery and connection

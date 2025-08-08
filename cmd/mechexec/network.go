@@ -39,7 +39,7 @@ var joinCmd = &cobra.Command{
         // Try to advertise; Windows backend will return error (unsupported)
         advCtx, advCancel := context.WithCancel(context.Background())
         defer advCancel()
-        if err := transport.Advertise(advCtx, []byte("mechexec")); err != nil {
+        if err := transport.Advertise(advCtx, []byte("meshexec")); err != nil {
             if logger != nil {
                 logger.Warn("Advertising not available; continuing with scanning only", map[string]interface{}{"error": err.Error()})
             }

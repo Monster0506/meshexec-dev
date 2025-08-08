@@ -10,7 +10,7 @@ import (
 
     bt "tinygo.org/x/bluetooth"
 
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // tgTransport implements BLETransport using tinygo bluetooth on Windows.

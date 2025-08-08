@@ -3,7 +3,7 @@
 package ble
 
 import (
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // NewNativeTransport on Windows falls back to the simulated transport for now.

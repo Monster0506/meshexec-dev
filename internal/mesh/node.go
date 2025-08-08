@@ -5,8 +5,8 @@ import (
     "errors"
     "sync"
 
-    core "github.com/monster0506/mechexec/internal"
-    "github.com/monster0506/mechexec/internal/ble"
+    core "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/ble"
 )
 
 // Node implements core.MeshNode, orchestrating BLE discovery/advertising
@@ -74,7 +74,7 @@ func (n *Node) Start(ctx context.Context) error {
     advCtx, advCancel := context.WithCancel(context.Background())
     n.advCancel = advCancel
     // Use a minimal serviceData marker; future: encode discovery metadata
-    if err := n.transport.Advertise(advCtx, []byte("mechexec")); err != nil {
+    if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
         advCancel()
         return err
     }

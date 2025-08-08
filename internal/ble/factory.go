@@ -6,7 +6,7 @@ import (
     "strings"
     "time"
 
-    core "github.com/monster0506/mechexec/internal"
+    core "github.com/monster0506/meshexec/internal"
 )
 
 // New returns a BLETransport using native BLE when available, falling back to a

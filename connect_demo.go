@@ -6,8 +6,8 @@ import (
   "fmt"
   "time"
 
-  "github.com/monster0506/mechexec/internal"
-  "github.com/monster0506/mechexec/internal/ble"
+  "github.com/monster0506/meshexec/internal"
+  "github.com/monster0506/meshexec/internal/ble"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
   // Start advertising so the Windows simulator can discover itself
   advCtx, advCancel := context.WithCancel(context.Background())
   defer advCancel()
-  _ = t.Advertise(advCtx, []byte("mechexec"))
+  _ = t.Advertise(advCtx, []byte("meshexec"))
 
   m := ble.NewManager(t)
 
