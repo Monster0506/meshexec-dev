@@ -32,9 +32,9 @@ Features:
 func init() {
 	// Add global flags here
 	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is $HOME/.meshexec/config.toml)")
-    rootCmd.PersistentFlags().StringP("log-level", "l", "none", "log level (none, debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringP("log-level", "l", "none", "log level (none, debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
-	
+
 	// Initialize logging after flags are defined
 	cobra.OnInitialize(initializeLogging)
 }
@@ -43,23 +43,23 @@ func initializeLogging() {
 	// Get log level from flags
 	logLevel, _ := rootCmd.PersistentFlags().GetString("log-level")
 	verbose, _ := rootCmd.PersistentFlags().GetBool("verbose")
-	
+
 	// Override log level if verbose flag is set
 	if verbose {
 		logLevel = "debug"
 	}
-	
+
 	// Initialize logger
 	logger = logging.NewLogger(logLevel)
-	
+
 	// Log startup information
-    if logLevel != "none" && logger != nil {
-        logger.Info("MeshExec CLI starting", map[string]interface{}{
-            "version":   rootCmd.Version,
-            "log_level": logLevel,
-            "verbose":   verbose,
-        })
-    }
+	if logLevel != "none" && logger != nil {
+		logger.Info("MeshExec CLI starting", map[string]interface{}{
+			"version":   rootCmd.Version,
+			"log_level": logLevel,
+			"verbose":   verbose,
+		})
+	}
 }
 
 func main() {

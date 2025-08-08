@@ -1,51 +1,57 @@
-﻿package main
+package main
 
 import (
-  "context"
-  "flag"
-  "fmt"
-  "time"
+	"context"
+	"flag"
+	"fmt"
+	"time"
 
-  "github.com/monster0506/meshexec/internal"
-  "github.com/monster0506/meshexec/internal/ble"
-  "github.com/monster0506/meshexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/ble"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 func main() {
-  addrFlag := flag.String("addr", "", "BLE device address")
-  flag.Parse()
+	addrFlag := flag.String("addr", "", "BLE device address")
+	flag.Parse()
 
-  cfg := internal.DefaultConfig()
-  t, err := ble.New(&cfg.Network)
-  if err != nil { panic(err) }
+	cfg := internal.DefaultConfig()
+	t, err := ble.New(&cfg.Network)
+	if err != nil {
+		panic(err)
+	}
 
-  // Start advertising so the Windows simulator can discover itself
-  advCtx, advCancel := context.WithCancel(context.Background())
-  defer advCancel()
-  _ = t.Advertise(advCtx, []byte("meshexec"))
+	// Start advertising so the Windows simulator can discover itself
+	advCtx, advCancel := context.WithCancel(context.Background())
+	defer advCancel()
+	_ = t.Advertise(advCtx, []byte("meshexec"))
 
-  logger := logging.NewLogger("info")
-  m := ble.NewManager(t, logger)
+	logger := logging.NewLogger("info")
+	m := ble.NewManager(t, logger)
 
-  ctx, cancel := context.WithCancel(context.Background())
-  defer cancel()
-  if err := m.StartDiscovery(ctx); err != nil { panic(err) }
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := m.StartDiscovery(ctx); err != nil {
+		panic(err)
+	}
 
-  target := *addrFlag
-  if target == "" {
-    subCtx, subCancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer subCancel()
-    updates := m.Subscribe(subCtx)
-    select {
-    case p := <-updates:
-      target = p.Address
-      fmt.Println("Discovered:", p.Name, p.Address)
-    case <-subCtx.Done():
-      panic("no device discovered")
-    }
-  }
+	target := *addrFlag
+	if target == "" {
+		subCtx, subCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer subCancel()
+		updates := m.Subscribe(subCtx)
+		select {
+		case p := <-updates:
+			target = p.Address
+			fmt.Println("Discovered:", p.Name, p.Address)
+		case <-subCtx.Done():
+			panic("no device discovered")
+		}
+	}
 
-  conn, err := m.Connect(ctx, target)
-  if err != nil { panic(err) }
-  fmt.Printf("Connected to %s (MTU=%d)\n", conn.Address, conn.MTU)
+	conn, err := m.Connect(ctx, target)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Connected to %s (MTU=%d)\n", conn.Address, conn.MTU)
 }

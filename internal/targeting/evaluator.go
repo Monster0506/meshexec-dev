@@ -10,7 +10,7 @@ import (
 )
 
 // Evaluator implements the TargetEvaluator interface
-type Evaluator struct{
+type Evaluator struct {
 	logger *logging.Logger
 }
 
@@ -38,9 +38,9 @@ func (e *Evaluator) Evaluate(expression string, device *internal.DeviceInfo) (bo
 	}
 
 	e.logger.Debug("Evaluating target expression", map[string]interface{}{
-		"expression": expression,
-		"device":     device.Name,
-		"device_os":  device.OS,
+		"expression":  expression,
+		"device":      device.Name,
+		"device_os":   device.OS,
 		"device_arch": device.Arch,
 	})
 
@@ -207,8 +207,6 @@ func (e *Evaluator) parseTokens(tokens []string) (*internal.TargetAST, error) {
 		return nil, fmt.Errorf("no tokens to parse")
 	}
 
-
-
 	// Handle negation
 	if tokens[0] == "!" {
 		if len(tokens) < 2 {
@@ -265,8 +263,6 @@ func (e *Evaluator) parseTokens(tokens []string) (*internal.TargetAST, error) {
 		return content, nil
 	}
 
-
-
 	// Check for unmatched closing parenthesis at the top level
 	parenCount := 0
 	for _, token := range tokens {
@@ -313,8 +309,6 @@ func (e *Evaluator) parseBinaryExpression(left *internal.TargetAST, tokens []str
 			}
 		}
 	}
-	
-
 
 	if lowestIndex == -1 {
 		// No binary operator found, must be a single condition
@@ -467,4 +461,4 @@ func (e *Evaluator) evaluateCondition(condition string, device *internal.DeviceI
 
 	// Compare values (case-insensitive for better usability)
 	return strings.EqualFold(deviceValue, value), nil
-} 
+}

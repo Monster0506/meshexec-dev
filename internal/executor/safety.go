@@ -33,32 +33,32 @@ func (s *SafetyChecker) compilePatterns() {
 	var raw []string
 	// defaults by platform
 	if runtime.GOOS == "windows" {
-        raw = append(raw,
-            `(?:(?:^|\s))(?:del)\s+/s(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:rd)\s+/s(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:format)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:bcdedit)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:shutdown)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:cipher)\s+/w(?:(?:\s|$))`,
-        )
+		raw = append(raw,
+			`(?:(?:^|\s))(?:del)\s+/s(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:rd)\s+/s(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:format)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:bcdedit)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:shutdown)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:cipher)\s+/w(?:(?:\s|$))`,
+		)
 		// PowerShell cmdlets
-        raw = append(raw,
-            `powershell\b.*-command\b.*remove-item.*-recurse`,
-            `remove-item\b.*-recurse`,
-            `stop-computer\b`,
-            `format-volume\b`,
-        )
+		raw = append(raw,
+			`powershell\b.*-command\b.*remove-item.*-recurse`,
+			`remove-item\b.*-recurse`,
+			`stop-computer\b`,
+			`format-volume\b`,
+		)
 	} else {
-        raw = append(raw,
-            `(?:(?:^|\s))(?:rm)\s+-rf(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:dd)\s+if=(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:shutdown)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:poweroff)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:mkfs)(?:(?:\s|$))`,
-            `(?:(?:^|\s))(?:chmod)\s+-R\s+000\s+/(?:(?:\s|$))`,
-            // shell wrapper
-            `(?:(?:^|\s))(?:sh|bash)\s+-c\s+.*rm\s+-rf(?:(?:\s|$))`,
-        )
+		raw = append(raw,
+			`(?:(?:^|\s))(?:rm)\s+-rf(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:dd)\s+if=(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:shutdown)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:poweroff)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:mkfs)(?:(?:\s|$))`,
+			`(?:(?:^|\s))(?:chmod)\s+-R\s+000\s+/(?:(?:\s|$))`,
+			// shell wrapper
+			`(?:(?:^|\s))(?:sh|bash)\s+-c\s+.*rm\s+-rf(?:(?:\s|$))`,
+		)
 		// fork bomb pattern (loose)
 		raw = append(raw, `:\(\)\s*\{\s*:\|:\s*&\s*\};:`)
 	}
@@ -68,21 +68,21 @@ func (s *SafetyChecker) compilePatterns() {
 		if p == "" {
 			continue
 		}
-        // build token-anchored flexible whitespace pattern without over-escaping
-        tokens := strings.Fields(p)
-        if len(tokens) == 0 {
-            continue
-        }
-        var b strings.Builder
-        b.WriteString(`(?:(?:^|\s))`)
-        for i, tok := range tokens {
-            b.WriteString(regexp.QuoteMeta(strings.ToLower(tok)))
-            if i < len(tokens)-1 {
-                b.WriteString(`\s+`)
-            }
-        }
-        b.WriteString(`(?:(?:\s|$))`)
-        raw = append(raw, b.String())
+		// build token-anchored flexible whitespace pattern without over-escaping
+		tokens := strings.Fields(p)
+		if len(tokens) == 0 {
+			continue
+		}
+		var b strings.Builder
+		b.WriteString(`(?:(?:^|\s))`)
+		for i, tok := range tokens {
+			b.WriteString(regexp.QuoteMeta(strings.ToLower(tok)))
+			if i < len(tokens)-1 {
+				b.WriteString(`\s+`)
+			}
+		}
+		b.WriteString(`(?:(?:\s|$))`)
+		raw = append(raw, b.String())
 	}
 	// compile
 	for _, rp := range raw {

@@ -10,24 +10,24 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
 	"github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/logging"
+	"github.com/spf13/viper"
 )
 
 // Manager implements the ConfigManager interface
 type Manager struct {
-	viper    *viper.Viper
-	config   *internal.Config
-	watcher  *fsnotify.Watcher
+	viper      *viper.Viper
+	config     *internal.Config
+	watcher    *fsnotify.Watcher
 	configPath string
-	logger   *logging.Logger
+	logger     *logging.Logger
 }
 
 // NewManager creates a new configuration manager
 func NewManager() *Manager {
 	return &Manager{
-		viper: viper.New(),
+		viper:  viper.New(),
 		logger: logging.NewLogger("info"),
 	}
 }
@@ -44,7 +44,7 @@ func (m *Manager) Load() (*internal.Config, error) {
 			m.logger.Debug("Loading configuration from specified path", map[string]interface{}{
 				"path": m.configPath,
 			})
-			
+
 			// File exists, try to load it
 			data, err := os.ReadFile(m.configPath)
 			if err != nil {
@@ -72,7 +72,7 @@ func (m *Manager) Load() (*internal.Config, error) {
 
 			m.config = &config
 			m.logger.Info("Configuration loaded successfully", map[string]interface{}{
-				"path": m.configPath,
+				"path":        m.configPath,
 				"device_name": config.Device.Name,
 				"device_role": config.Device.Role,
 			})
@@ -133,7 +133,7 @@ func (m *Manager) Load() (*internal.Config, error) {
 
 	m.config = &config
 	m.logger.Info("Configuration loaded successfully", map[string]interface{}{
-		"path": configFile,
+		"path":        configFile,
 		"device_name": config.Device.Name,
 		"device_role": config.Device.Role,
 	})
@@ -144,7 +144,7 @@ func (m *Manager) Load() (*internal.Config, error) {
 func (m *Manager) Save(config *internal.Config) error {
 	configPath := m.getConfigPath()
 	m.logger.Debug("Saving configuration", map[string]interface{}{
-		"path": configPath,
+		"path":        configPath,
 		"device_name": config.Device.Name,
 	})
 
@@ -174,7 +174,7 @@ func (m *Manager) Save(config *internal.Config) error {
 
 	m.config = config
 	m.logger.Info("Configuration saved successfully", map[string]interface{}{
-		"path": configPath,
+		"path":        configPath,
 		"device_name": config.Device.Name,
 	})
 	return nil
@@ -227,7 +227,7 @@ func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					if strings.HasSuffix(event.Name, ".toml") || strings.HasSuffix(event.Name, ".ini") {
 						m.logger.Debug("Configuration file changed, reloading", map[string]interface{}{
-							"file": event.Name,
+							"file":      event.Name,
 							"operation": event.Op.String(),
 						})
 						// Reload configuration
@@ -235,7 +235,7 @@ func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 							select {
 							case configChan <- config:
 								m.logger.Info("Configuration reloaded and sent to channel", map[string]interface{}{
-									"file": event.Name,
+									"file":        event.Name,
 									"device_name": config.Device.Name,
 								})
 							case <-ctx.Done():
@@ -433,4 +433,4 @@ func (m *Manager) CreateDefaultConfig() error {
 	m.logger.Info("Creating default configuration file", nil)
 	config := internal.DefaultConfig()
 	return m.Save(config)
-} 
+}

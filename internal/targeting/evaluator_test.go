@@ -313,7 +313,7 @@ func TestEvaluator_Evaluate_ErrorCases(t *testing.T) {
 		{"multiple tokens without operator", "os=linux role=worker", device, true, "invalid expression: multiple tokens without operator"},
 	}
 
-			for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := evaluator.Evaluate(tt.expression, tt.device)
 			if tt.expectError {
@@ -430,7 +430,7 @@ func TestEvaluator_Parse_ErrorCases(t *testing.T) {
 		{"no tokens", "", true, "expression cannot be empty"},
 	}
 
-			for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := evaluator.Parse(tt.expression)
 			if tt.expectError {
@@ -509,11 +509,3 @@ func TestEvaluator_OperatorPrecedence(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, result)
 }
-
-
-
-	
-
-	
-
- 

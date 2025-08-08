@@ -17,7 +17,7 @@ func TestNewMessageHandler(t *testing.T) {
 
 func TestCreateCommandMessage(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -26,7 +26,7 @@ func TestCreateCommandMessage(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg.ID)
 	assert.Equal(t, "ls", msg.Command)
@@ -42,7 +42,7 @@ func TestCreateCommandMessage(t *testing.T) {
 
 func TestCreateResultMessage(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	result := internal.ExecutionResult{
 		ID:       "result1",
 		Type:     "command_execution",
@@ -53,9 +53,9 @@ func TestCreateResultMessage(t *testing.T) {
 		Device:   "device1",
 		Duration: 100,
 	}
-	
+
 	msg := handler.CreateResultMessage("cmd1", result, "device1")
-	
+
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg.ID)
 	assert.Equal(t, "cmd1", msg.CommandID)
@@ -68,9 +68,9 @@ func TestCreateResultMessage(t *testing.T) {
 
 func TestCreatePingMessage(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("device1")
-	
+
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg.ID)
 	assert.Equal(t, "device1", msg.Sender)
@@ -81,10 +81,10 @@ func TestCreatePingMessage(t *testing.T) {
 
 func TestCreatePongMessage(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	pingID := "ping123"
 	msg := handler.CreatePongMessage(pingID, "device1")
-	
+
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg.ID)
 	assert.Equal(t, "device1", msg.Sender)
@@ -95,7 +95,7 @@ func TestCreatePongMessage(t *testing.T) {
 
 func TestSerializeMessage(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"echo",
 		[]string{"hello"},
@@ -104,16 +104,16 @@ func TestSerializeMessage(t *testing.T) {
 		"/tmp",
 		10,
 	)
-	
+
 	data, err := handler.SerializeMessage(msg)
 	require.NoError(t, err)
 	assert.NotEmpty(t, data)
-	
+
 	// Verify it's valid JSON
 	var parsed map[string]interface{}
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "cmd", parsed["type"])
 	assert.Equal(t, "echo", parsed["command"])
 	assert.Equal(t, "sender1", parsed["sender"])
@@ -121,7 +121,7 @@ func TestSerializeMessage(t *testing.T) {
 
 func TestDeserializeMessage_Command(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	originalMsg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -130,16 +130,16 @@ func TestDeserializeMessage_Command(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	data, err := handler.SerializeMessage(originalMsg)
 	require.NoError(t, err)
-	
+
 	deserialized, err := handler.DeserializeMessage(data)
 	require.NoError(t, err)
-	
+
 	msg, ok := deserialized.(*internal.CommandMessage)
 	require.True(t, ok)
-	
+
 	assert.Equal(t, originalMsg.ID, msg.ID)
 	assert.Equal(t, originalMsg.Command, msg.Command)
 	assert.Equal(t, originalMsg.Arguments, msg.Arguments)
@@ -150,7 +150,7 @@ func TestDeserializeMessage_Command(t *testing.T) {
 
 func TestDeserializeMessage_Result(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	result := internal.ExecutionResult{
 		ID:       "result1",
 		Type:     "command_execution",
@@ -161,18 +161,18 @@ func TestDeserializeMessage_Result(t *testing.T) {
 		Device:   "device1",
 		Duration: 100,
 	}
-	
+
 	originalMsg := handler.CreateResultMessage("cmd1", result, "device1")
-	
+
 	data, err := handler.SerializeMessage(originalMsg)
 	require.NoError(t, err)
-	
+
 	deserialized, err := handler.DeserializeMessage(data)
 	require.NoError(t, err)
-	
+
 	msg, ok := deserialized.(*internal.ResultMessage)
 	require.True(t, ok)
-	
+
 	assert.Equal(t, originalMsg.ID, msg.ID)
 	assert.Equal(t, originalMsg.CommandID, msg.CommandID)
 	assert.Equal(t, originalMsg.Result, msg.Result)
@@ -181,18 +181,18 @@ func TestDeserializeMessage_Result(t *testing.T) {
 
 func TestDeserializeMessage_Ping(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	originalMsg := handler.CreatePingMessage("device1")
-	
+
 	data, err := handler.SerializeMessage(originalMsg)
 	require.NoError(t, err)
-	
+
 	deserialized, err := handler.DeserializeMessage(data)
 	require.NoError(t, err)
-	
+
 	msg, ok := deserialized.(*internal.MeshMessage)
 	require.True(t, ok)
-	
+
 	assert.Equal(t, originalMsg.ID, msg.ID)
 	assert.Equal(t, originalMsg.Sender, msg.Sender)
 	assert.Equal(t, originalMsg.Type, msg.Type)
@@ -200,14 +200,14 @@ func TestDeserializeMessage_Ping(t *testing.T) {
 
 func TestDeserializeMessage_InvalidJSON(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	_, err := handler.DeserializeMessage([]byte("invalid json"))
 	assert.Error(t, err)
 }
 
 func TestDeserializeMessage_UnknownType(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	data := []byte(`{"type": "unknown"}`)
 	_, err := handler.DeserializeMessage(data)
 	assert.Error(t, err)
@@ -216,7 +216,7 @@ func TestDeserializeMessage_UnknownType(t *testing.T) {
 
 func TestValidateMessage_Command(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -225,14 +225,14 @@ func TestValidateMessage_Command(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.NoError(t, err)
 }
 
 func TestValidateMessage_Command_EmptyCommand(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"",
 		[]string{"-la"},
@@ -241,7 +241,7 @@ func TestValidateMessage_Command_EmptyCommand(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "command cannot be empty")
@@ -249,7 +249,7 @@ func TestValidateMessage_Command_EmptyCommand(t *testing.T) {
 
 func TestValidateMessage_Command_InvalidType(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -259,7 +259,7 @@ func TestValidateMessage_Command_InvalidType(t *testing.T) {
 		30,
 	)
 	msg.Type = internal.MessageTypeResult // Wrong type
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid message type for command message")
@@ -267,7 +267,7 @@ func TestValidateMessage_Command_InvalidType(t *testing.T) {
 
 func TestValidateMessage_Result(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	result := internal.ExecutionResult{
 		ID:       "result1",
 		Type:     "command_execution",
@@ -278,16 +278,16 @@ func TestValidateMessage_Result(t *testing.T) {
 		Device:   "device1",
 		Duration: 100,
 	}
-	
+
 	msg := handler.CreateResultMessage("cmd1", result, "device1")
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.NoError(t, err)
 }
 
 func TestValidateMessage_Result_EmptyCommandID(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	result := internal.ExecutionResult{
 		ID:       "result1",
 		Type:     "command_execution",
@@ -298,9 +298,9 @@ func TestValidateMessage_Result_EmptyCommandID(t *testing.T) {
 		Device:   "device1",
 		Duration: 100,
 	}
-	
+
 	msg := handler.CreateResultMessage("", result, "device1")
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "command ID cannot be empty")
@@ -308,19 +308,19 @@ func TestValidateMessage_Result_EmptyCommandID(t *testing.T) {
 
 func TestValidateMessage_Mesh(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("device1")
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.NoError(t, err)
 }
 
 func TestValidateMessage_Mesh_EmptyID(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("device1")
 	msg.ID = ""
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message ID cannot be empty")
@@ -328,9 +328,9 @@ func TestValidateMessage_Mesh_EmptyID(t *testing.T) {
 
 func TestValidateMessage_Mesh_EmptySender(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("")
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "sender cannot be empty")
@@ -338,10 +338,10 @@ func TestValidateMessage_Mesh_EmptySender(t *testing.T) {
 
 func TestValidateMessage_Mesh_InvalidTTL(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("device1")
 	msg.TTL = 0
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "TTL must be greater than 0")
@@ -349,10 +349,10 @@ func TestValidateMessage_Mesh_InvalidTTL(t *testing.T) {
 
 func TestValidateMessage_Mesh_OldTimestamp(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreatePingMessage("device1")
 	msg.Timestamp = time.Now().Add(-2 * time.Hour).Unix() // 2 hours ago
-	
+
 	err := handler.ValidateMessage(msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message is too old")
@@ -360,7 +360,7 @@ func TestValidateMessage_Mesh_OldTimestamp(t *testing.T) {
 
 func TestValidateMessage_UnknownType(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	err := handler.ValidateMessage("not a message")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown message type")
@@ -368,7 +368,7 @@ func TestValidateMessage_UnknownType(t *testing.T) {
 
 func TestDecrementTTL(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -377,20 +377,20 @@ func TestDecrementTTL(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	originalTTL := msg.TTL
-	
+
 	// Decrement TTL
 	stillValid := handler.DecrementTTL(msg)
 	assert.True(t, stillValid)
 	assert.Equal(t, originalTTL-1, msg.TTL)
-	
+
 	// Decrement until expired (TTL starts at 5, so we need 3 more decrements to get to 1)
 	for i := 0; i < 3; i++ {
 		stillValid = handler.DecrementTTL(msg)
 		assert.True(t, stillValid)
 	}
-	
+
 	// Final decrement should make it expired
 	stillValid = handler.DecrementTTL(msg)
 	assert.False(t, stillValid)
@@ -399,7 +399,7 @@ func TestDecrementTTL(t *testing.T) {
 
 func TestIsExpired(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -408,14 +408,14 @@ func TestIsExpired(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	// Should not be expired initially
 	assert.False(t, handler.IsExpired(msg))
-	
+
 	// Set TTL to 0
 	msg.TTL = 0
 	assert.True(t, handler.IsExpired(msg))
-	
+
 	// Set TTL to negative
 	msg.TTL = -1
 	assert.True(t, handler.IsExpired(msg))
@@ -423,7 +423,7 @@ func TestIsExpired(t *testing.T) {
 
 func TestGetMessageID(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -432,7 +432,7 @@ func TestGetMessageID(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	id := handler.GetMessageID(msg)
 	assert.Equal(t, msg.ID, id)
 	assert.NotEmpty(t, id)
@@ -440,7 +440,7 @@ func TestGetMessageID(t *testing.T) {
 
 func TestGetMessageType(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	msg := handler.CreateCommandMessage(
 		"ls",
 		[]string{"-la"},
@@ -449,14 +449,14 @@ func TestGetMessageType(t *testing.T) {
 		"/tmp",
 		30,
 	)
-	
+
 	msgType := handler.GetMessageType(msg)
 	assert.Equal(t, internal.MessageTypeCommand, msgType)
 }
 
 func TestCreateExecutionResult(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	result := handler.CreateExecutionResult(
 		"ls -la",
 		"success",
@@ -466,7 +466,7 @@ func TestCreateExecutionResult(t *testing.T) {
 		"device1",
 		100*time.Millisecond,
 	)
-	
+
 	assert.NotEmpty(t, result.ID)
 	assert.Equal(t, "command_execution", result.Type)
 	assert.Equal(t, "success", result.Status)
@@ -479,7 +479,7 @@ func TestCreateExecutionResult(t *testing.T) {
 
 func TestCreateExecutionResults(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	results := []internal.ExecutionResult{
 		{
 			ID:       "result1",
@@ -502,9 +502,9 @@ func TestCreateExecutionResults(t *testing.T) {
 			Duration: 200,
 		},
 	}
-	
+
 	execResults := handler.CreateExecutionResults("cmd1", "ls -la", "all", results)
-	
+
 	assert.Equal(t, "cmd1", execResults.CommandID)
 	assert.Equal(t, "ls -la", execResults.Command)
 	assert.Equal(t, "all", execResults.Target)
@@ -518,16 +518,16 @@ func TestCreateExecutionResults(t *testing.T) {
 
 func TestCalculateResultSummary(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	results := []internal.ExecutionResult{
 		{Status: "success", Duration: 100},
 		{Status: "success", Duration: 200},
 		{Status: "failed", Duration: 150},
 		{Status: "timeout", Duration: 300},
 	}
-	
+
 	summary := handler.calculateResultSummary(results)
-	
+
 	assert.Equal(t, 4, summary.TotalDevices)
 	assert.Equal(t, 2, summary.Successful)
 	assert.Equal(t, 1, summary.Failed)
@@ -537,15 +537,15 @@ func TestCalculateResultSummary(t *testing.T) {
 
 func TestGenerateMessageID(t *testing.T) {
 	handler := NewMessageHandler()
-	
+
 	id1 := handler.generateMessageID()
 	id2 := handler.generateMessageID()
-	
+
 	assert.NotEmpty(t, id1)
 	assert.NotEmpty(t, id2)
 	assert.NotEqual(t, id1, id2) // IDs should be unique
-	
+
 	// Should be valid UUID format
 	assert.Len(t, id1, 36) // UUID v4 length
 	assert.Len(t, id2, 36)
-} 
+}

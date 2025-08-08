@@ -21,12 +21,12 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_Load_DefaultConfig(t *testing.T) {
 	manager := NewManager()
-	
+
 	// Test loading when no config file exists (should return default)
 	config, err := manager.Load()
 	require.NoError(t, err)
 	assert.NotNil(t, config)
-	
+
 	// Verify default values
 	assert.Equal(t, "meshexec-device", config.Device.Name)
 	assert.Equal(t, "worker", config.Device.Role)
@@ -42,7 +42,7 @@ func TestManager_Load_FromFile(t *testing.T) {
 	// Create temporary config file
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	configData := `
 [device]
 name = "test-device"
@@ -63,17 +63,17 @@ safe_mode = false
 max_command_length = 1024
 execution_timeout = 30000
 `
-	
+
 	err := os.WriteFile(configPath, []byte(configData), 0644)
 	require.NoError(t, err)
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	config, err := manager.Load()
 	require.NoError(t, err)
 	assert.NotNil(t, config)
-	
+
 	// Verify loaded values
 	assert.Equal(t, "test-device", config.Device.Name)
 	assert.Equal(t, "test-role", config.Device.Role)
@@ -88,10 +88,10 @@ execution_timeout = 30000
 func TestManager_Save(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	// Create custom config
 	config := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -109,20 +109,20 @@ func TestManager_Save(t *testing.T) {
 			MaxPeers:    25,
 		},
 		Safety: internal.SafetyConfig{
-			SafeMode:          false,
-			MaxCommandLength:  1024,
-			ExecutionTimeout:  30000,
+			SafeMode:         false,
+			MaxCommandLength: 1024,
+			ExecutionTimeout: 30000,
 		},
 	}
-	
+
 	// Save config
 	err := manager.Save(config)
 	require.NoError(t, err)
-	
+
 	// Verify file was created
 	_, err = os.Stat(configPath)
 	assert.NoError(t, err)
-	
+
 	// Load config back and verify
 	loadedConfig, err := manager.Load()
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestManager_Save(t *testing.T) {
 
 func TestManager_ValidateConfig(t *testing.T) {
 	manager := NewManager()
-	
+
 	tests := []struct {
 		name    string
 		config  *internal.Config
@@ -246,7 +246,7 @@ func TestManager_ValidateConfig(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := manager.validateConfig(tt.config)
@@ -262,10 +262,10 @@ func TestManager_ValidateConfig(t *testing.T) {
 func TestManager_Watch(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	// Create initial config
 	initialConfig := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -277,24 +277,24 @@ func TestManager_Watch(t *testing.T) {
 			MaxPeers:    10,
 		},
 		Safety: internal.SafetyConfig{
-			MaxCommandLength:  1024,
-			ExecutionTimeout:  30000,
+			MaxCommandLength: 1024,
+			ExecutionTimeout: 30000,
 		},
 	}
-	
+
 	err := manager.Save(initialConfig)
 	require.NoError(t, err)
-	
+
 	// Start watching
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	configChan, err := manager.Watch(ctx)
 	require.NoError(t, err)
-	
+
 	// Wait a bit for watcher to start
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Modify config file
 	updatedConfig := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -306,14 +306,14 @@ func TestManager_Watch(t *testing.T) {
 			MaxPeers:    10,
 		},
 		Safety: internal.SafetyConfig{
-			MaxCommandLength:  1024,
-			ExecutionTimeout:  30000,
+			MaxCommandLength: 1024,
+			ExecutionTimeout: 30000,
 		},
 	}
-	
+
 	err = manager.Save(updatedConfig)
 	require.NoError(t, err)
-	
+
 	// Wait for config change
 	select {
 	case config := <-configChan:
@@ -326,18 +326,18 @@ func TestManager_Watch(t *testing.T) {
 func TestManager_CreateDefaultConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	// Create default config
 	err := manager.CreateDefaultConfig()
 	require.NoError(t, err)
-	
+
 	// Verify file was created
 	_, err = os.Stat(configPath)
 	assert.NoError(t, err)
-	
+
 	// Load and verify default values
 	config, err := manager.Load()
 	require.NoError(t, err)
@@ -352,16 +352,16 @@ func TestManager_CreateDefaultConfig(t *testing.T) {
 func TestManager_GetConfigPaths(t *testing.T) {
 	manager := NewManager()
 	paths := manager.getConfigPaths()
-	
+
 	// Should include current directory
 	assert.Contains(t, paths, ".")
-	
+
 	// Should include user config directory if available
 	userConfigDir, err := manager.getUserConfigDir()
 	if err == nil {
 		assert.Contains(t, paths, userConfigDir)
 	}
-	
+
 	// Should include system config directory if available
 	systemConfigDir := manager.getSystemConfigDir()
 	if systemConfigDir != "" {
@@ -371,20 +371,20 @@ func TestManager_GetConfigPaths(t *testing.T) {
 
 func TestManager_GetUserConfigDir(t *testing.T) {
 	manager := NewManager()
-	
+
 	userConfigDir, err := manager.getUserConfigDir()
 	if err != nil {
 		// Skip test if we can't get user config dir
 		t.Skip("Cannot get user config directory")
 	}
-	
+
 	assert.NotEmpty(t, userConfigDir)
 	assert.Contains(t, userConfigDir, "meshexec")
 }
 
 func TestManager_GetSystemConfigDir(t *testing.T) {
 	manager := NewManager()
-	
+
 	systemConfigDir := manager.getSystemConfigDir()
 	// System config dir might be empty on some systems, which is OK
 	if systemConfigDir != "" {
@@ -394,20 +394,20 @@ func TestManager_GetSystemConfigDir(t *testing.T) {
 
 func TestManager_CrossPlatformConfigLoading(t *testing.T) {
 	manager := NewManager()
-	
+
 	// Test that config paths are correctly determined for different platforms
 	paths := manager.getConfigPaths()
 	assert.NotEmpty(t, paths)
-	
+
 	// Should always include current directory
 	assert.Contains(t, paths, ".")
-	
+
 	// Should include user config directory
 	userConfigDir, err := manager.getUserConfigDir()
 	if err == nil {
 		assert.Contains(t, paths, userConfigDir)
 	}
-	
+
 	// Should include system config directory if available
 	systemConfigDir := manager.getSystemConfigDir()
 	if systemConfigDir != "" {
@@ -419,10 +419,10 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 	// Test file watching on different platforms
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	// Create initial config
 	initialConfig := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -434,24 +434,24 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 			MaxPeers:    10,
 		},
 		Safety: internal.SafetyConfig{
-			MaxCommandLength:  1024,
-			ExecutionTimeout:  30000,
+			MaxCommandLength: 1024,
+			ExecutionTimeout: 30000,
 		},
 	}
-	
+
 	err := manager.Save(initialConfig)
 	require.NoError(t, err)
-	
+
 	// Test that file watching works on this platform
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	
+
 	configChan, err := manager.Watch(ctx)
 	require.NoError(t, err)
-	
+
 	// Wait for watcher to start
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Modify config file
 	updatedConfig := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -463,14 +463,14 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 			MaxPeers:    20,
 		},
 		Safety: internal.SafetyConfig{
-			MaxCommandLength:  2048,
-			ExecutionTimeout:  60000,
+			MaxCommandLength: 2048,
+			ExecutionTimeout: 60000,
 		},
 	}
-	
+
 	err = manager.Save(updatedConfig)
 	require.NoError(t, err)
-	
+
 	// Wait for config change notification
 	select {
 	case receivedConfig := <-configChan:
@@ -485,7 +485,7 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 
 func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 	manager := NewManager()
-	
+
 	// Test Windows-specific path handling
 	if runtime.GOOS == "windows" {
 		// Test APPDATA environment variable handling
@@ -496,7 +496,7 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 			assert.Contains(t, userConfigDir, appData)
 			assert.Contains(t, userConfigDir, "meshexec")
 		}
-		
+
 		// Test PROGRAMDATA environment variable handling
 		programData := os.Getenv("PROGRAMDATA")
 		if programData != "" {
@@ -508,12 +508,12 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 		// Test Unix-specific path handling
 		homeDir, err := os.UserHomeDir()
 		require.NoError(t, err)
-		
+
 		userConfigDir, err := manager.getUserConfigDir()
 		require.NoError(t, err)
 		assert.Contains(t, userConfigDir, homeDir)
 		assert.Contains(t, userConfigDir, ".meshexec")
-		
+
 		systemConfigDir := manager.getSystemConfigDir()
 		assert.Equal(t, "/etc/meshexec", systemConfigDir)
 	}
@@ -522,10 +522,10 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 func TestManager_FilePermissions(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
-	
+
 	manager := NewManager()
 	manager.SetConfigPath(configPath)
-	
+
 	// Test that config file is created with appropriate permissions
 	config := &internal.Config{
 		Device: internal.DeviceConfig{
@@ -537,25 +537,25 @@ func TestManager_FilePermissions(t *testing.T) {
 			MaxPeers:    10,
 		},
 		Safety: internal.SafetyConfig{
-			MaxCommandLength:  1024,
-			ExecutionTimeout:  30000,
+			MaxCommandLength: 1024,
+			ExecutionTimeout: 30000,
 		},
 	}
-	
+
 	err := manager.Save(config)
 	require.NoError(t, err)
-	
+
 	// Check file permissions
 	info, err := os.Stat(configPath)
 	require.NoError(t, err)
-	
+
 	// Should be readable by owner
 	assert.True(t, info.Mode().IsRegular())
-	
+
 	// On Unix systems, check specific permissions
 	if runtime.GOOS != "windows" {
 		// Should be readable and writable by owner (0644)
 		expectedMode := os.FileMode(0644)
 		assert.Equal(t, expectedMode, info.Mode().Perm())
 	}
-} 
+}

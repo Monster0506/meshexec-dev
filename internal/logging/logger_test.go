@@ -39,7 +39,7 @@ func TestNewLogger(t *testing.T) {
 
 func TestLogger_Info(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	// Create logger with custom output for testing
 	logger := &Logger{
 		logger: zerolog.New(&buf).With().Timestamp().Logger(),
@@ -133,7 +133,7 @@ func TestLogger_WithFields(t *testing.T) {
 
 func TestLogger_Levels(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	// Create logger with debug level enabled
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	logger := &Logger{
@@ -182,7 +182,7 @@ func TestLogger_JSONOutput(t *testing.T) {
 
 func TestLogger_ConsoleOutput(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	// Create logger with console output (like debug mode)
 	logger := &Logger{
 		logger: zerolog.New(zerolog.ConsoleWriter{Out: &buf}).With().Timestamp().Logger(),

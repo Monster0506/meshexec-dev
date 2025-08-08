@@ -32,7 +32,7 @@ func NewSecurityManager() *SecurityManager {
 // GenerateKeyPair generates a new ed25519 key pair
 func (sm *SecurityManager) GenerateKeyPair() error {
 	sm.logger.Debug("Generating new ed25519 key pair", nil)
-	
+
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		sm.logger.Error("Failed to generate key pair", err, nil)
@@ -43,7 +43,7 @@ func (sm *SecurityManager) GenerateKeyPair() error {
 	sm.privateKey = privateKey
 
 	sm.logger.Info("Key pair generated successfully", map[string]interface{}{
-		"public_key_length": len(publicKey),
+		"public_key_length":  len(publicKey),
 		"private_key_length": len(privateKey),
 	})
 
@@ -344,8 +344,8 @@ func (sm *SecurityManager) generateMessageID() string {
 	timestamp := time.Now().UnixNano()
 	randomBytes := make([]byte, 8)
 	rand.Read(randomBytes)
-	
+
 	// Combine timestamp and random bytes
 	id := fmt.Sprintf("%d-%x", timestamp, randomBytes)
 	return id
-} 
+}

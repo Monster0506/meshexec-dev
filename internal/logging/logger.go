@@ -17,13 +17,13 @@ type Logger struct {
 func NewLogger(level string) *Logger {
 	// Parse log level
 	logLevel := parseLogLevel(level)
-	
+
 	// Configure zerolog
 	zerolog.SetGlobalLevel(logLevel)
-	
+
 	// Always use pretty console logging for better readability
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	
+
 	return &Logger{
 		logger: log.Logger,
 	}
@@ -32,8 +32,8 @@ func NewLogger(level string) *Logger {
 // parseLogLevel converts a string level to zerolog level
 func parseLogLevel(level string) zerolog.Level {
 	switch strings.ToLower(level) {
-    case "none", "off", "silent":
-        return zerolog.Disabled
+	case "none", "off", "silent":
+		return zerolog.Disabled
 	case "debug":
 		return zerolog.DebugLevel
 	case "info":

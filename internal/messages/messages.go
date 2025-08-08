@@ -11,7 +11,7 @@ import (
 )
 
 // MessageHandler provides utilities for creating, serializing, and validating messages
-type MessageHandler struct{
+type MessageHandler struct {
 	logger *logging.Logger
 }
 
@@ -187,7 +187,7 @@ func (h *MessageHandler) DeserializeMessage(data []byte) (interface{}, error) {
 			return nil, fmt.Errorf("failed to deserialize mesh message: %w", err)
 		}
 		h.logger.Debug("Deserialized mesh message", map[string]interface{}{
-			"message_id": msg.ID,
+			"message_id":   msg.ID,
 			"message_type": msg.Type,
 		})
 		return &msg, nil
@@ -437,4 +437,3 @@ func (h *MessageHandler) calculateResultSummary(results []internal.ExecutionResu
 
 	return summary
 }
-
