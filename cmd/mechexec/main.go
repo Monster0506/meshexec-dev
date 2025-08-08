@@ -32,7 +32,7 @@ Features:
 func init() {
 	// Add global flags here
 	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is $HOME/.mechexec/config.toml)")
-	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level (debug, info, warn, error)")
+    rootCmd.PersistentFlags().StringP("log-level", "l", "none", "log level (none, debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 	
 	// Initialize logging after flags are defined
@@ -53,11 +53,13 @@ func initializeLogging() {
 	logger = logging.NewLogger(logLevel)
 	
 	// Log startup information
-	logger.Info("MechExec CLI starting", map[string]interface{}{
-		"version":   rootCmd.Version,
-		"log_level": logLevel,
-		"verbose":   verbose,
-	})
+    if logLevel != "none" && logger != nil {
+        logger.Info("MechExec CLI starting", map[string]interface{}{
+            "version":   rootCmd.Version,
+            "log_level": logLevel,
+            "verbose":   verbose,
+        })
+    }
 }
 
 func main() {

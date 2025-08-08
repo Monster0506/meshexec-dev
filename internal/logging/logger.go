@@ -32,6 +32,8 @@ func NewLogger(level string) *Logger {
 // parseLogLevel converts a string level to zerolog level
 func parseLogLevel(level string) zerolog.Level {
 	switch strings.ToLower(level) {
+    case "none", "off", "silent":
+        return zerolog.Disabled
 	case "debug":
 		return zerolog.DebugLevel
 	case "info":
