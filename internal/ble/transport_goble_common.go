@@ -107,14 +107,14 @@ func (t *nativeTransport) Scan(ctx context.Context) (<-chan *core.Advertisement,
 		defer t.logger.Info("Native BLE scan stopped", nil)
 
 		scanCount := 0
+		// Updated Scan call with new API: add nil as AdvFilter parameter
 		_ = goble.Scan(ctx, true, func(a goble.Advertisement) {
 			scanCount++
 			sd := map[string][]byte{}
-			// Map service data if available
-			for _, u := range a.Services() {
-				if b := a.ServiceData(u); len(b) > 0 {
-					sd[u.String()] = append([]byte(nil), b...)
-				}
+			// Updated ServiceData call: no longer takes UUID parameter
+			serviceData := a.ServiceData()
+			for _, data := range serviceData {
+				sd[data.UUID.String()] = append([]byte(nil), data.Data...)
 			}
 			adv := &core.Advertisement{
 				Address:     a.Addr().String(),
@@ -139,7 +139,7 @@ func (t *nativeTransport) Scan(ctx context.Context) (<-chan *core.Advertisement,
 					"address": adv.Address,
 				})
 			}
-		})
+		}, nil) // Added nil as AdvFilter parameter
 
 		t.logger.Info("Native BLE scan completed", map[string]interface{}{
 			"total_advertisements": scanCount,
@@ -160,7 +160,9 @@ func (t *nativeTransport) Connect(ctx context.Context, addr string) (*core.Conne
 		"target_address": addr,
 	})
 
-	c, err := goble.Dial(ctx, addr)
+	// Updated Dial call: convert string to ble.Addr
+	addrObj := goble.NewAddr(addr)
+	c, err := goble.Dial(ctx, addrObj)
 	if err != nil {
 		t.logger.Error("Native BLE connection failed", err, map[string]interface{}{
 			"target_address": addr,
@@ -168,9 +170,11 @@ func (t *nativeTransport) Connect(ctx context.Context, addr string) (*core.Conne
 		return nil, err
 	}
 
+	// Updated MTU handling: AttMTU() method no longer exists
 	mtu := 0
 	if c != nil {
-		mtu = c.AttMTU()
+		// Use default MTU since AttMTU() is no longer available
+		mtu = 23 // Default BLE MTU
 	}
 
 	t.logger.Info("Native BLE connection established", map[string]interface{}{
