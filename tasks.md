@@ -142,15 +142,15 @@
     - Write unit tests for network management commands
     - _Requirements: 2.1, 6.1, 6.2, 6.3_
 
-- [ ] 10. Implement terminal UI dashboard
-  - [ ] 10.1 Create TUI framework with bubbletea
+- [x] 10. Implement terminal UI dashboard
+  - [x] 10.1 Create TUI framework with bubbletea
     - Set up bubbletea-based terminal UI with multiple views
     - Implement real-time peer list and network status display
     - Add command execution results aggregation and display
     - Write unit tests for TUI components
     - _Requirements: 6.4_
 
-  - [ ] 10.2 Integrate TUI with live data updates
+  - [x] 10.2 Integrate TUI with live data updates
     - Connect TUI to agent for real-time network and execution updates
     - Add interactive command execution from TUI interface
     - Implement result filtering and search functionality
