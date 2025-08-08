@@ -66,7 +66,7 @@ type LoggingConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Device: DeviceConfig{
-			Name:     "mechexec-device",
+			Name:     "meshexec-device",
 			Role:     "worker",
 			Tags:     make(map[string]string),
 			OS:       "unknown",
@@ -75,8 +75,8 @@ func DefaultConfig() *Config {
 			Zone:     "default",
 		},
 		Security: SecurityConfig{
-			PrivateKeyPath: "~/.mechexec/private.key",
-			PublicKeyPath:  "~/.mechexec/public.key",
+			PrivateKeyPath: "~/.meshexec/private.key",
+			PublicKeyPath:  "~/.meshexec/public.key",
 			EncryptionKey:  "",
 			AllowedSenders: []string{},
 			DeniedSenders:  []string{},

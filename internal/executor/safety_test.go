@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/monster0506/mechexec/internal"
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 func newTestConfig() *internal.Config {

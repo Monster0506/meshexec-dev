@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/monster0506/mechexec/internal/config"
-	"github.com/monster0506/mechexec/internal/messages"
-    "github.com/monster0506/mechexec/internal/executor"
+	"github.com/monster0506/meshexec/internal/config"
+	"github.com/monster0506/meshexec/internal/messages"
+    "github.com/monster0506/meshexec/internal/executor"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ var runCmd = &cobra.Command{
 	Short: "Send a command to the mesh",
 	Long:  "Run a shell command across the mesh targeting selected devices.",
 	Args:  cobra.MinimumNArgs(1),
-	Example: "mechexec run -t \"os=linux && role=worker\" -- echo hello\nmechexec run --target all -- uptime\nmechexec run --dry-run -t 'arch=arm' -- cat /proc/cpuinfo",
+	Example: "meshexec run -t \"os=linux && role=worker\" -- echo hello\nmeshexec run --target all -- uptime\nmeshexec run --dry-run -t 'arch=arm' -- cat /proc/cpuinfo",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load configuration
 		cfgMgr := config.NewManager()

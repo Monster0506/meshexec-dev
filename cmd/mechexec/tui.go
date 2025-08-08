@@ -4,14 +4,14 @@ import (
     "context"
     "time"
 
-    "github.com/monster0506/mechexec/internal"
-    "github.com/monster0506/mechexec/internal/tui"
+    "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/tui"
     "github.com/spf13/cobra"
 )
 
 var tuiCmd = &cobra.Command{
     Use:   "tui",
-    Short: "Launch the MechExec terminal UI",
+    Short: "Launch the MeshExec terminal UI",
     RunE: func(cmd *cobra.Command, args []string) error {
         // Use root logging
         if logger != nil {

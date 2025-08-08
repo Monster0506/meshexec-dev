@@ -1,4 +1,4 @@
-module github.com/monster0506/mechexec
+module github.com/monster0506/meshexec
 
 go 1.23.0
 

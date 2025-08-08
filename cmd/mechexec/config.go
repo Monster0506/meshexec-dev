@@ -5,13 +5,13 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/monster0506/mechexec/internal/config"
+	"github.com/monster0506/meshexec/internal/config"
 )
 
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration",
-	Long:  `Manage MechExec CLI configuration files and settings.`,
+	Long:  `Manage MeshExec CLI configuration files and settings.`,
 }
 
 var configShowCmd = &cobra.Command{

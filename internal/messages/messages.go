@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/monster0506/mechexec/internal"
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 // MessageHandler provides utilities for creating, serializing, and validating messages

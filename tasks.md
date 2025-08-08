@@ -159,7 +159,7 @@
 
 - [ ] 11. Add comprehensive error handling and logging
   - [ ] 11.1 Implement structured error handling
-    - Create MechExecError types for different error categories
+    - Create MeshExecError types for different error categories
     - Add error handling strategies for network, execution, and security errors
     - Implement error propagation and user-friendly error messages
     - Write unit tests for error handling scenarios

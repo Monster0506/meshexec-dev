@@ -11,8 +11,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
-	"github.com/monster0506/mechexec/internal"
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 // Manager implements the ConfigManager interface
@@ -275,7 +275,7 @@ func (m *Manager) setupViper() {
 	}
 
 	// Set environment variable prefix
-	m.viper.SetEnvPrefix("MECHEXEC")
+	m.viper.SetEnvPrefix("MeshExec")
 	m.viper.AutomaticEnv()
 
 	// Set default values
@@ -325,13 +325,13 @@ func (m *Manager) getUserConfigDir() (string, error) {
 		if appData == "" {
 			return "", fmt.Errorf("APPDATA environment variable not set")
 		}
-		return filepath.Join(appData, "mechexec"), nil
+		return filepath.Join(appData, "meshexec"), nil
 	default:
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(homeDir, ".mechexec"), nil
+		return filepath.Join(homeDir, ".meshexec"), nil
 	}
 }
 
@@ -343,16 +343,16 @@ func (m *Manager) getSystemConfigDir() string {
 		if programData == "" {
 			return ""
 		}
-		return filepath.Join(programData, "mechexec")
+		return filepath.Join(programData, "meshexec")
 	default:
-		return "/etc/mechexec"
+		return "/etc/meshexec"
 	}
 }
 
 // setDefaults sets default configuration values
 func (m *Manager) setDefaults() {
 	// Device defaults
-	m.viper.SetDefault("device.name", "mechexec-device")
+	m.viper.SetDefault("device.name", "meshexec-device")
 	m.viper.SetDefault("device.role", "worker")
 	m.viper.SetDefault("device.os", runtime.GOOS)
 	m.viper.SetDefault("device.arch", runtime.GOARCH)
@@ -361,8 +361,8 @@ func (m *Manager) setDefaults() {
 
 	// Security defaults
 	m.viper.SetDefault("security.require_auth", true)
-	m.viper.SetDefault("security.private_key_path", "~/.mechexec/private.key")
-	m.viper.SetDefault("security.public_key_path", "~/.mechexec/public.key")
+	m.viper.SetDefault("security.private_key_path", "~/.meshexec/private.key")
+	m.viper.SetDefault("security.public_key_path", "~/.meshexec/public.key")
 
 	// Network defaults
 	m.viper.SetDefault("network.service_uuid", "12345678-1234-1234-1234-123456789abc")

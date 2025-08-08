@@ -13,8 +13,8 @@ import (
     "github.com/charmbracelet/bubbles/textinput"
     "github.com/charmbracelet/lipgloss"
     tea "github.com/charmbracelet/bubbletea"
-    "github.com/monster0506/mechexec/internal"
-    "github.com/monster0506/mechexec/internal/logging"
+    "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
 // messages pushed into the UI
@@ -292,7 +292,7 @@ func (m model) View() string {
     tabActiveStyle := lipgloss.NewStyle().Foreground(m.theme.AccentA).Bold(true)
     tabNormalStyle := lipgloss.NewStyle().Foreground(m.theme.Muted)
 
-    header := headerStyle.Render("MechExec Dashboard") + "\n" + subtitleStyle.Render("Decentralized command execution over BLE mesh")
+    header := headerStyle.Render("MeshExec Dashboard") + "\n" + subtitleStyle.Render("Decentralized command execution over BLE mesh")
     tabs := []string{
         choose(m.tab == tabPeers, tabActiveStyle.Render("Peers"), tabNormalStyle.Render("Peers")),
         choose(m.tab == tabResults, tabActiveStyle.Render("Results"), tabNormalStyle.Render("Results")),

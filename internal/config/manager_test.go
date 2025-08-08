@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/meshexec/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func TestManager_Load_DefaultConfig(t *testing.T) {
 	assert.NotNil(t, config)
 	
 	// Verify default values
-	assert.Equal(t, "mechexec-device", config.Device.Name)
+	assert.Equal(t, "meshexec-device", config.Device.Name)
 	assert.Equal(t, "worker", config.Device.Role)
 	assert.Equal(t, "unknown", config.Device.OS)
 	assert.Equal(t, "unknown", config.Device.Arch)
@@ -341,7 +341,7 @@ func TestManager_CreateDefaultConfig(t *testing.T) {
 	// Load and verify default values
 	config, err := manager.Load()
 	require.NoError(t, err)
-	assert.Equal(t, "mechexec-device", config.Device.Name)
+	assert.Equal(t, "meshexec-device", config.Device.Name)
 	assert.Equal(t, "worker", config.Device.Role)
 	assert.True(t, config.Security.RequireAuth)
 	assert.Equal(t, 5, config.Network.TTL)
@@ -379,7 +379,7 @@ func TestManager_GetUserConfigDir(t *testing.T) {
 	}
 	
 	assert.NotEmpty(t, userConfigDir)
-	assert.Contains(t, userConfigDir, "mechexec")
+	assert.Contains(t, userConfigDir, "meshexec")
 }
 
 func TestManager_GetSystemConfigDir(t *testing.T) {
@@ -388,7 +388,7 @@ func TestManager_GetSystemConfigDir(t *testing.T) {
 	systemConfigDir := manager.getSystemConfigDir()
 	// System config dir might be empty on some systems, which is OK
 	if systemConfigDir != "" {
-		assert.Contains(t, systemConfigDir, "mechexec")
+		assert.Contains(t, systemConfigDir, "meshexec")
 	}
 }
 
@@ -494,7 +494,7 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 			userConfigDir, err := manager.getUserConfigDir()
 			require.NoError(t, err)
 			assert.Contains(t, userConfigDir, appData)
-			assert.Contains(t, userConfigDir, "mechexec")
+			assert.Contains(t, userConfigDir, "meshexec")
 		}
 		
 		// Test PROGRAMDATA environment variable handling
@@ -502,7 +502,7 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 		if programData != "" {
 			systemConfigDir := manager.getSystemConfigDir()
 			assert.Contains(t, systemConfigDir, programData)
-			assert.Contains(t, systemConfigDir, "mechexec")
+			assert.Contains(t, systemConfigDir, "meshexec")
 		}
 	} else {
 		// Test Unix-specific path handling
@@ -512,10 +512,10 @@ func TestManager_PlatformSpecificPathHandling(t *testing.T) {
 		userConfigDir, err := manager.getUserConfigDir()
 		require.NoError(t, err)
 		assert.Contains(t, userConfigDir, homeDir)
-		assert.Contains(t, userConfigDir, ".mechexec")
+		assert.Contains(t, userConfigDir, ".meshexec")
 		
 		systemConfigDir := manager.getSystemConfigDir()
-		assert.Equal(t, "/etc/mechexec", systemConfigDir)
+		assert.Equal(t, "/etc/meshexec", systemConfigDir)
 	}
 }
 

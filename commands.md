@@ -1,11 +1,11 @@
-# MechExec CLI - Commands and Flags
+# MeshExec CLI - Commands and Flags
 
-This document lists the CLI commands and flags for `mechexec`, indicating what is implemented now and what is planned next per the project plan and requirements.
+This document lists the CLI commands and flags for `meshexec`, indicating what is implemented now and what is planned next per the project plan and requirements.
 
 ## Global
 
 - --config, -c [string] (Implemented)
-  - Path to config file (default is $HOME/.mechexec/config.toml)
+  - Path to config file (default is $HOME/.meshexec/config.toml)
 - --log-level, -l [debug|info|warn|error] (Implemented)
   - Set log verbosity (console format always)
 - --verbose, -v (Implemented)
@@ -16,7 +16,7 @@ This document lists the CLI commands and flags for `mechexec`, indicating what i
 ## Commands
 
 ### config (Implemented)
-Manage MechExec CLI configuration files and settings.
+Manage MeshExec CLI configuration files and settings.
 
 Subcommands:
 - config init (Implemented)
@@ -41,7 +41,7 @@ Related requirements: 8.1–8.4
 Send a shell command to targeted devices in the mesh (dispatch pipeline pending).
 
 Usage:
-- mechexec run [flags] -- <command> [args...]
+- meshexec run [flags] -- <command> [args...]
 
 Flags:
 - --target, -t [string] (Implemented: accepted by CLI, evaluator wiring pending)
@@ -120,7 +120,7 @@ Related: Tasks 10.1–10.2, Requirements 6
 Generate shell completion scripts.
 
 Usage:
-- mechexec completion [bash|zsh|fish|powershell]
+- meshexec completion [bash|zsh|fish|powershell]
 
 ---
 

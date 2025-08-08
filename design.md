@@ -2,7 +2,7 @@
 
 ## Overview
 
-MechExec CLI is a decentralized command execution system built in Go that creates a self-healing Bluetooth LE mesh network for secure shell command execution across distributed devices. The system consists of a CLI frontend, mesh networking layer, agent daemon, and configuration management system that work together to provide reliable, secure, and targeted command execution without requiring centralized infrastructure.
+MeshExec CLI is a decentralized command execution system built in Go that creates a self-healing Bluetooth LE mesh network for secure shell command execution across distributed devices. The system consists of a CLI frontend, mesh networking layer, agent daemon, and configuration management system that work together to provide reliable, secure, and targeted command execution without requiring centralized infrastructure.
 
 ## Architecture
 
@@ -56,7 +56,7 @@ The architecture follows a distributed peer-to-peer model where each device runs
 
 ## Components and Interfaces
 
-### CLI Frontend (`cmd/mechexec`)
+### CLI Frontend (`cmd/meshexec`)
 
 **Purpose**: Provides user interface for command execution and network management
 
@@ -285,7 +285,7 @@ type NetworkTopology struct {
 ### Error Types
 
 ```go
-type MechExecError struct {
+type MeshExecError struct {
     Type    ErrorType `json:"type"`
     Message string    `json:"message"`
     Code    string    `json:"code"`

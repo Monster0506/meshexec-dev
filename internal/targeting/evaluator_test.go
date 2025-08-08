@@ -3,7 +3,7 @@ package targeting
 import (
 	"testing"
 
-	"github.com/monster0506/mechexec/internal"
+	"github.com/monster0506/meshexec/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

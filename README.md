@@ -135,8 +135,8 @@ dangerous_commands = [         # optional additions/overrides
 ```
 
 CLI usage
-- Prefer preview: `mechexec run --dry-run -- <cmd>`
-- Enforce explicitly: `mechexec run --safe-mode -- <cmd>`
+- Prefer preview: `meshexec run --dry-run -- <cmd>`
+- Enforce explicitly: `meshexec run --safe-mode -- <cmd>`
 
 Logging & visibility
 - When a command is blocked, a warning is logged (pattern and reason). Increase verbosity with `-v`.

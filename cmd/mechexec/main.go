@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal/logging"
 	"github.com/spf13/cobra"
 )
 
 var logger *logging.Logger
 
 var rootCmd = &cobra.Command{
-	Use:   "mechexec",
-	Short: "MechExec CLI - Decentralized command execution over Bluetooth LE mesh",
-	Long: `MechExec CLI allows multiple Bluetooth-enabled devices to form a self-healing mesh network 
+	Use:   "meshexec",
+	Short: "MeshExec CLI - Decentralized command execution over Bluetooth LE mesh",
+	Long: `MeshExec CLI allows multiple Bluetooth-enabled devices to form a self-healing mesh network 
 to broadcast, relay, and execute shell commands securely and efficiently without Wi-Fi or central infrastructure.
 
 Features:
@@ -31,7 +31,7 @@ Features:
 
 func init() {
 	// Add global flags here
-	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is $HOME/.mechexec/config.toml)")
+	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is $HOME/.meshexec/config.toml)")
     rootCmd.PersistentFlags().StringP("log-level", "l", "none", "log level (none, debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 	
@@ -54,7 +54,7 @@ func initializeLogging() {
 	
 	// Log startup information
     if logLevel != "none" && logger != nil {
-        logger.Info("MechExec CLI starting", map[string]interface{}{
+        logger.Info("MeshExec CLI starting", map[string]interface{}{
             "version":   rootCmd.Version,
             "log_level": logLevel,
             "verbose":   verbose,

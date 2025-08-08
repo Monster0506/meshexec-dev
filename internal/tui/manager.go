@@ -5,11 +5,11 @@ import (
     "sync"
 
     tea "github.com/charmbracelet/bubbletea"
-    "github.com/monster0506/mechexec/internal"
-    "github.com/monster0506/mechexec/internal/logging"
+    "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
-// Manager is a Bubble Tea based implementation of a terminal UI for MechExec
+// Manager is a Bubble Tea based implementation of a terminal UI for MeshExec
 type Manager struct {
     program *tea.Program
     logger  *logging.Logger

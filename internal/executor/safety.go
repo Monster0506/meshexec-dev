@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/monster0506/mechexec/internal"
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 type SafetyChecker struct {
@@ -102,7 +102,7 @@ func (s *SafetyChecker) ValidateCommand(cmd string) error {
 	}
 	// length
 	if len(cmd) > s.maxLength {
-		return &internal.MechExecError{Type: internal.ErrorTypeExecution, Code: "command_too_long", Message: fmt.Sprintf("command exceeds max length (%d)", s.maxLength), Details: map[string]interface{}{"max": s.maxLength, "len": len(cmd)}}
+		return &internal.MeshExecError{Type: internal.ErrorTypeExecution, Code: "command_too_long", Message: fmt.Sprintf("command exceeds max length (%d)", s.maxLength), Details: map[string]interface{}{"max": s.maxLength, "len": len(cmd)}}
 	}
 	// normalize for matching
 	norm := normalize(cmd)
@@ -111,7 +111,7 @@ func (s *SafetyChecker) ValidateCommand(cmd string) error {
 			if s.logger != nil {
 				s.logger.Warn("Blocked dangerous command", map[string]interface{}{"pattern": re.String()})
 			}
-			return &internal.MechExecError{Type: internal.ErrorTypeExecution, Code: "dangerous_command", Message: "command blocked by safety policy", Details: map[string]interface{}{"pattern": re.String()}}
+			return &internal.MeshExecError{Type: internal.ErrorTypeExecution, Code: "dangerous_command", Message: "command blocked by safety policy", Details: map[string]interface{}{"pattern": re.String()}}
 		}
 	}
 	return nil

@@ -1,8 +1,8 @@
-# **MechExec CLI - Tech Spec**
+# **MeshExec CLI - Tech Spec**
 
 ## **Overview**
 
-MechExec CLI allows multiple Bluetooth-enabled devices to form a self-healing mesh network to broadcast, relay, and execute shell commands securely and efficiently without Wi-Fi or central infrastructure.
+MeshExec CLI allows multiple Bluetooth-enabled devices to form a self-healing mesh network to broadcast, relay, and execute shell commands securely and efficiently without Wi-Fi or central infrastructure.
 
 ---
 
@@ -23,14 +23,14 @@ MechExec CLI allows multiple Bluetooth-enabled devices to form a self-healing me
 ```
              +-------------------+     +-------------------+
              |    Device A       |<--->|     Device B      |
-             | mechexec agent    |     | mechexec agent    |
+             | meshexec agent    |     | meshexec agent    |
              +-------------------+     +-------------------+
                       ^                         ^
                       |                         |
                       v                         v
              +-------------------+     +-------------------+
              |    Device C       |<--->|     Device D      |
-             | mechexec agent    |     | mechexec agent    |
+             | meshexec agent    |     | meshexec agent    |
              +-------------------+     +-------------------+
 ```
 
@@ -38,7 +38,7 @@ MechExec CLI allows multiple Bluetooth-enabled devices to form a self-healing me
 
 ## **3. Components**
 
-### **A. CLI Frontend (`mechexec`)**
+### **A. CLI Frontend (`meshexec`)**
 
 * Written in Go using [Cobra](https://github.com/spf13/cobra)
 * Subcommands:
@@ -132,34 +132,34 @@ Supports expressions like:
 
 ```sh
 # Basic command
-mechexec run --target="all" "uptime"
+meshexec run --target="all" "uptime"
 
 # Scoped execution
-mechexec run --target="arch=arm" "cat /proc/cpuinfo"
+meshexec run --target="arch=arm" "cat /proc/cpuinfo"
 
 # Role-based
-mechexec run --target="role=logger" "logrotate"
+meshexec run --target="role=logger" "logrotate"
 
 # Check who’s alive
-mechexec list
+meshexec list
 
 # Get the last 10 logs from all devices
-mechexec run "tail -n 10 /var/log/syslog"
+meshexec run "tail -n 10 /var/log/syslog"
 
 # Reboot all field units
-mechexec run --target="zone=alpha" "sudo reboot"
+meshexec run --target="zone=alpha" "sudo reboot"
 
 # Chain multiple commands
-mechexec run 'cd /opt/service && git pull && systemctl restart api'
+meshexec run 'cd /opt/service && git pull && systemctl restart api'
 
 # Dry-run mode
-mechexec run --dry-run "rm -rf /"
+meshexec run --dry-run "rm -rf /"
 
 # Start the agent listener
-mechexec join
+meshexec join
 
 # Launch dashboard
-mechexec tui
+meshexec tui
 ```
 
 ---
@@ -240,7 +240,7 @@ func ExecuteShell(cmd string) ExecutionResult {
 
 * **Simulated Mesh** in-memory for unit tests
 * **BLE Mocking Layer** for integration
-* **Dockerized BLE MechExec** for multi-node testing on one machine
+* **Dockerized BLE MeshExec** for multi-node testing on one machine
 * **Log Replay System** to simulate real environments
 
 ---

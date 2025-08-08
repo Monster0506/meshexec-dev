@@ -181,14 +181,14 @@ const (
 	ErrorTypeTargeting ErrorType = "targeting"
 )
 
-// MechExecError represents a structured error
-type MechExecError struct {
+// MeshExecError represents a structured error
+type MeshExecError struct {
 	Type    ErrorType                `json:"type"`
 	Message string                   `json:"message"`
 	Code    string                   `json:"code"`
 	Details map[string]interface{}   `json:"details,omitempty"`
 }
 
-func (e *MechExecError) Error() string {
+func (e *MeshExecError) Error() string {
 	return e.Message
 } 

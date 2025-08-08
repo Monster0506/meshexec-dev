@@ -6,7 +6,7 @@ import (
     "os"
     "time"
 
-    "github.com/monster0506/mechexec/internal/config"
+    "github.com/monster0506/meshexec/internal/config"
     "github.com/spf13/cobra"
 )
 

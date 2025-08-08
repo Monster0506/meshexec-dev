@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/monster0506/mechexec/internal"
-	"github.com/monster0506/mechexec/internal/logging"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 // SecurityManager handles cryptographic operations for message signing and verification

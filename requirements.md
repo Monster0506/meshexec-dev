@@ -2,7 +2,7 @@
 
 ## Introduction
 
-MechExec CLI is a decentralized command execution system that enables multiple Bluetooth-enabled devices to form a self-healing mesh network for broadcasting, relaying, and executing shell commands securely without requiring Wi-Fi or central infrastructure. The system provides both CLI and TUI interfaces for managing command execution across distributed devices with role-based targeting and secure message passing.
+MeshExec CLI is a decentralized command execution system that enables multiple Bluetooth-enabled devices to form a self-healing mesh network for broadcasting, relaying, and executing shell commands securely without requiring Wi-Fi or central infrastructure. The system provides both CLI and TUI interfaces for managing command execution across distributed devices with role-based targeting and secure message passing.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ MechExec CLI is a decentralized command execution system that enables multiple B
 
 #### Acceptance Criteria
 
-1. WHEN a user executes `mechexec run --target="all" "uptime"` THEN the system SHALL broadcast the command to all connected devices in the mesh
+1. WHEN a user executes `meshexec run --target="all" "uptime"` THEN the system SHALL broadcast the command to all connected devices in the mesh
 2. WHEN a device receives a command packet THEN the system SHALL execute the command using the system shell and return results
 3. WHEN command execution completes THEN the system SHALL return stdout, stderr, exit code, and execution status to the originating device
 4. IF a command fails to execute THEN the system SHALL return error details and non-zero exit code
@@ -23,7 +23,7 @@ MechExec CLI is a decentralized command execution system that enables multiple B
 
 #### Acceptance Criteria
 
-1. WHEN a device runs `mechexec join` THEN the system SHALL start advertising its presence via Bluetooth LE GATT services
+1. WHEN a device runs `meshexec join` THEN the system SHALL start advertising its presence via Bluetooth LE GATT services
 2. WHEN a device is in join mode THEN the system SHALL scan for and connect to other advertising mesh nodes
 3. WHEN two devices establish connection THEN the system SHALL maintain the connection for message relay
 4. IF a connection is lost THEN the system SHALL attempt to reconnect and find alternative routes through the mesh
@@ -67,9 +67,9 @@ MechExec CLI is a decentralized command execution system that enables multiple B
 
 #### Acceptance Criteria
 
-1. WHEN a user runs `mechexec list` THEN the system SHALL display all currently connected peer devices
-2. WHEN a user runs `mechexec status` THEN the system SHALL show execution status of recent commands
-3. WHEN a user runs `mechexec tui` THEN the system SHALL launch a terminal UI dashboard showing live network status
+1. WHEN a user runs `meshexec list` THEN the system SHALL display all currently connected peer devices
+2. WHEN a user runs `meshexec status` THEN the system SHALL show execution status of recent commands
+3. WHEN a user runs `meshexec tui` THEN the system SHALL launch a terminal UI dashboard showing live network status
 4. WHEN command results are received THEN the system SHALL aggregate and display them in the appropriate interface
 
 ### Requirement 7
