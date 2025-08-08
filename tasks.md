@@ -6,7 +6,7 @@
   - Set up go.mod with required dependencies (cobra, viper, toml, uuid, crypto, bubbletea, zerolog)
   - _Requirements: 1.1, 2.1, 8.1_
 
-- [x] 2. Implement configuration management system ✅
+- [x] 2. Implement configuration management system
   - [x] 2.1 Create configuration data structures and parsing
     - Implement Config, DeviceConfig, SecurityConfig, NetworkConfig, and SafetyConfig structs
     - Write TOML file parsing using viper and BurntSushi/toml
@@ -20,7 +20,7 @@
     - Create unit tests for configuration loading and file watching on both platforms
     - _Requirements: 8.1, 8.2_
 
-- [x] 3. Implement core data models and message handling ✅
+- [x] 3. Implement core data models and message handling
   - [x] 3.1 Create mesh message data structures
     - Implement MeshMessage, CommandMessage, ResultMessage, and ExecutionResult structs
     - Add JSON serialization/deserialization with proper field tags
@@ -121,7 +121,7 @@
     - _Requirements: 1.1, 1.2, 1.3, 4.3, 4.4_
 
 - [ ] 9. Implement CLI frontend commands
-  - [ ] 9.1 Create basic CLI structure with Cobra
+  - [x] 9.1 Create basic CLI structure with Cobra
     - Set up main CLI application with cobra framework
     - Implement basic command structure (run, join, list, status, tui)
     - Add global flags and configuration loading
@@ -142,7 +142,7 @@
     - Write unit tests for network management commands
     - _Requirements: 2.1, 6.1, 6.2, 6.3_
 
-- [x] 10. Implement terminal UI dashboard
+- [ ] 10. Implement terminal UI dashboard
   - [x] 10.1 Create TUI framework with bubbletea
     - Set up bubbletea-based terminal UI with multiple views
     - Implement real-time peer list and network status display
@@ -150,7 +150,7 @@
     - Write unit tests for TUI components
     - _Requirements: 6.4_
 
-  - [x] 10.2 Integrate TUI with live data updates
+  - [ ] 10.2 Integrate TUI with live data updates
     - Connect TUI to agent for real-time network and execution updates
     - Add interactive command execution from TUI interface
     - Implement result filtering and search functionality
@@ -165,7 +165,7 @@
     - Write unit tests for error handling scenarios
     - _Requirements: 1.4, 3.3, 7.4, 9.4_
 
-  - [x] 11.2 Implement structured logging system ✅
+  - [x] 11.2 Implement structured logging system
     - Set up zerolog-based logging with configurable levels
     - Add logging throughout all components with appropriate levels
     - Implement log rotation and configuration options

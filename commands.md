@@ -25,12 +25,13 @@ Subcommands:
 - config show (Implemented)
   - Show effective configuration and its source path
   - Flags: inherits global flags
+- config validate (Implemented)
+  - Validate config file and report issues
 
 Future (Planned):
 - config edit (Planned)
   - Open the active config in the system editor
-- config validate (Planned)
-  - Validate config file and report issues
+
 
 Related requirements: 8.1–8.4
 
@@ -51,10 +52,10 @@ Flags:
   - Working directory hint for execution
 - --timeout, -T [ms] (Implemented)
   - Command timeout in milliseconds (default 30000)
+- --safe-mode (Implemented)
+  - Enforce safety filters for dangerous commands (see Task 5.2)
 
 Future (Planned):
-- --safe-mode (Planned)
-  - Enforce safety filters for dangerous commands (see Task 5.2)
 - --no-sign / --encrypt (Planned)
   - Control message signing and optional encryption (Req. 3)
 - --format [text|json] (Planned)

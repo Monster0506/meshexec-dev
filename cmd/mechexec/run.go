@@ -7,6 +7,7 @@ import (
 
 	"github.com/monster0506/mechexec/internal/config"
 	"github.com/monster0506/mechexec/internal/messages"
+    "github.com/monster0506/mechexec/internal/executor"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +47,26 @@ var runCmd = &cobra.Command{
 		if len(args) > 1 {
 			cmdArgs = args[1:]
 		}
+
+        // Safety validation (if enabled via flag or config)
+        effectiveSafe := runSafeMode || cfg.Safety.SafeMode
+        if effectiveSafe {
+            full := command
+            if len(cmdArgs) > 0 {
+                full = full + " " + strings.Join(cmdArgs, " ")
+            }
+            checker := executor.NewSafetyChecker(cfg, logger)
+            if err := checker.ValidateCommand(full); err != nil {
+                if logger != nil {
+                    logger.Warn("Command blocked by safety policy", map[string]interface{}{
+                        "error": err.Error(),
+                        "command": command,
+                    })
+                }
+                fmt.Fprintf(os.Stderr, "Blocked by safety policy: %v\n", err)
+                os.Exit(2)
+            }
+        }
 
         // Target evaluator integration pending – provide a placeholder message
         if logger != nil {
