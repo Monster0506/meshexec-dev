@@ -143,3 +143,52 @@ Show help for any command.
 - Req. 3: Signing/encryption flags (Planned)
 
 This file will be kept up-to-date as features are implemented.
+
+---
+
+## TODO (Proposed Future Commands)
+
+- Security key management
+  - keys generate: create ed25519 keypair (flags: --path, --force)
+  - keys show: print public key (PEM/Base64)
+  - keys import/export: manage key files
+
+- Connectivity diagnostics
+  - ping [target]: send ping over mesh (flags: --count, --interval, --timeout)
+  - trace [target]: show path when routing is implemented
+
+- Mesh inspection
+  - mesh peers: list peers (alias of list)
+  - mesh routes: show routing table
+  - mesh topo: summarize topology (flags: --json, --verbose)
+
+- Agent control
+  - daemon start|stop|run: run agent in foreground/background (flags: --config, --log-level, --foreground)
+  - service install|uninstall|start|stop (Windows-specific)
+
+- Targeting utilities
+  - target validate <expr>: syntax/precedence check
+  - target test <expr> --device-json <file>: evaluate against provided DeviceInfo (flag: --explain to print AST)
+
+- Execution UX enhancements
+  - run flags: --wait, --expect N, --watch, --aggregate [first|all|timeout], --env KEY=VAL (multi), --stdin-file PATH
+  - results show <command-id>: fetch/print aggregated results (flags: --json)
+  - results tail: stream results as they arrive (flags: --since, --follow)
+
+- Logs
+  - logs show/tail (flags: --component [agent|mesh|exec], --since, --level)
+
+- Config QoL
+  - config get <key> / set <key> <value> (flag: --json)
+  - config path: print active config path
+
+- Update/self-manage
+  - self-update: fetch latest release (flag: --yes)
+  - version flags: --short, --commit
+
+- Doctor/support
+  - doctor: run environment checks (BLE adapter, permissions, key files, config) (flags: --fix, --json)
+
+- BLE developer tools (optional)
+  - ble scan: raw BLE scan for debugging (flags: --duration, --service-uuid)
+  - ble info: show adapter status
