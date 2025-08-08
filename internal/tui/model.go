@@ -115,6 +115,32 @@ func newModel(logger *logging.Logger) model {
     }
 }
 
+// newModelWithInitialView constructs a model and selects initial tab based on view string.
+// Supported values: "overview" (peers), "peers", "results", "commands".
+func newModelWithInitialView(logger *logging.Logger, view string) model {
+    m := newModel(logger)
+    switch strings.ToLower(strings.TrimSpace(view)) {
+    case "peers", "overview", "":
+        m.tab = tabPeers
+        m.input.Blur()
+        m.resultFilter.Blur()
+    case "results":
+        m.tab = tabResults
+        m.resultFilter.Focus()
+        m.input.Blur()
+    case "commands":
+        m.tab = tabCommands
+        m.input.Focus()
+        m.resultFilter.Blur()
+    default:
+        // Fallback to peers
+        m.tab = tabPeers
+        m.input.Blur()
+        m.resultFilter.Blur()
+    }
+    return m
+}
+
 func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

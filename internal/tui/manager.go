@@ -41,8 +41,12 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
         opt(&cfg)
     }
 
-    model := newModel(m.logger)
-    // Note: initialView option will be used when model supports it
+    var model model
+    if cfg.initialView != "" {
+        model = newModelWithInitialView(m.logger, cfg.initialView)
+    } else {
+        model = newModel(m.logger)
+    }
     m.mu.Lock()
     m.program = tea.NewProgram(model, tea.WithContext(ctx))
     m.mu.Unlock()
