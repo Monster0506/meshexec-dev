@@ -9,12 +9,12 @@ import (
 )
 
 func TestNewEvaluator(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	assert.NotNil(t, evaluator)
 }
 
 func TestEvaluator_Evaluate_All(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -39,7 +39,7 @@ func TestEvaluator_Evaluate_All(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_SingleConditions(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -81,7 +81,7 @@ func TestEvaluator_Evaluate_SingleConditions(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_AndExpressions(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -117,7 +117,7 @@ func TestEvaluator_Evaluate_AndExpressions(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_OrExpressions(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -153,7 +153,7 @@ func TestEvaluator_Evaluate_OrExpressions(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_NotExpressions(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -187,7 +187,7 @@ func TestEvaluator_Evaluate_NotExpressions(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_ComplexExpressions(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -223,7 +223,7 @@ func TestEvaluator_Evaluate_ComplexExpressions(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_QuotedValues(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -257,7 +257,7 @@ func TestEvaluator_Evaluate_QuotedValues(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_WhitespaceHandling(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -286,7 +286,7 @@ func TestEvaluator_Evaluate_WhitespaceHandling(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate_ErrorCases(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -327,7 +327,7 @@ func TestEvaluator_Evaluate_ErrorCases(t *testing.T) {
 }
 
 func TestEvaluator_Parse(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 
 	tests := []struct {
 		name       string
@@ -414,7 +414,7 @@ func TestEvaluator_Parse(t *testing.T) {
 }
 
 func TestEvaluator_Parse_ErrorCases(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 
 	tests := []struct {
 		name        string
@@ -466,7 +466,7 @@ func assertASTEqual(t *testing.T, expected, actual *internal.TargetAST) {
 }
 
 func TestEvaluator_DeviceWithNilTags(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",
@@ -487,7 +487,7 @@ func TestEvaluator_DeviceWithNilTags(t *testing.T) {
 }
 
 func TestEvaluator_OperatorPrecedence(t *testing.T) {
-	evaluator := NewEvaluator()
+    evaluator := NewEvaluatorWithLevel("none")
 	device := &internal.DeviceInfo{
 		Name: "test-device",
 		Role: "worker",

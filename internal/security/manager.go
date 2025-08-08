@@ -22,11 +22,18 @@ type SecurityManager struct {
 	logger     *logging.Logger
 }
 
-// NewSecurityManager creates a new security manager
+// NewSecurityManager creates a new security manager with default info log level
 func NewSecurityManager() *SecurityManager {
-	return &SecurityManager{
-		logger: logging.NewLogger("info"),
-	}
+    return &SecurityManager{
+        logger: logging.NewLogger("info"),
+    }
+}
+
+// NewSecurityManagerWithLevel allows tests and callers to control log level
+func NewSecurityManagerWithLevel(level string) *SecurityManager {
+    return &SecurityManager{
+        logger: logging.NewLogger(level),
+    }
 }
 
 // GenerateKeyPair generates a new ed25519 key pair

@@ -23,7 +23,7 @@ func New(cfg *core.NetworkConfig) (core.BLETransport, error) {
 // NewWithLogger returns a BLETransport with logging support.
 func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, error) {
 	if logger == nil {
-		logger = logging.NewLogger("info")
+    	logger = logging.NewLogger("info")
 	}
 
 	implType := strings.ToLower(strings.TrimSpace(os.Getenv("MESHEXEC_BLE_IMPL")))

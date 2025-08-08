@@ -22,6 +22,14 @@ func NewMessageHandler() *MessageHandler {
 	}
 }
 
+// NewMessageHandlerWithLevel creates a new message handler with a configurable log level.
+// Use level "none" in tests to silence logs.
+func NewMessageHandlerWithLevel(level string) *MessageHandler {
+    return &MessageHandler{
+        logger: logging.NewLogger(level),
+    }
+}
+
 // CreateCommandMessage creates a new command message
 func (h *MessageHandler) CreateCommandMessage(
 	command string,

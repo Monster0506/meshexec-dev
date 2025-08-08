@@ -8,7 +8,7 @@ import (
 )
 
 func TestModel_InitAndPeerUpdate(t *testing.T) {
-	m := newModel(logging.NewLogger("error"))
+    m := newModel(logging.NewLogger("none"))
 	if m.peerList.FilterState() == 0 { // ensure list created
 		// ok
 	}
@@ -21,7 +21,7 @@ func TestModel_InitAndPeerUpdate(t *testing.T) {
 }
 
 func TestModel_ResultFiltering(t *testing.T) {
-	m := newModel(logging.NewLogger("error"))
+    m := newModel(logging.NewLogger("none"))
 	res := &internal.ExecutionResults{
 		Results: []internal.ExecutionResult{
 			{Device: "alpha", Status: "ok", Stdout: "hello"},
@@ -40,23 +40,23 @@ func TestModel_ResultFiltering(t *testing.T) {
 }
 
 func TestNewModelWithInitialView(t *testing.T) {
-	mPeers := newModelWithInitialView(logging.NewLogger("error"), "peers")
+    mPeers := newModelWithInitialView(logging.NewLogger("none"), "peers")
 	if mPeers.tab != tabPeers {
 		t.Fatalf("expected peers tab, got %v", mPeers.tab)
 	}
-	mOverview := newModelWithInitialView(logging.NewLogger("error"), "overview")
+    mOverview := newModelWithInitialView(logging.NewLogger("none"), "overview")
 	if mOverview.tab != tabPeers {
 		t.Fatalf("expected overview->peers tab, got %v", mOverview.tab)
 	}
-	mResults := newModelWithInitialView(logging.NewLogger("error"), "results")
+    mResults := newModelWithInitialView(logging.NewLogger("none"), "results")
 	if mResults.tab != tabResults {
 		t.Fatalf("expected results tab, got %v", mResults.tab)
 	}
-	mCommands := newModelWithInitialView(logging.NewLogger("error"), "commands")
+    mCommands := newModelWithInitialView(logging.NewLogger("none"), "commands")
 	if mCommands.tab != tabCommands {
 		t.Fatalf("expected commands tab, got %v", mCommands.tab)
 	}
-	mUnknown := newModelWithInitialView(logging.NewLogger("error"), "nope")
+    mUnknown := newModelWithInitialView(logging.NewLogger("none"), "nope")
 	if mUnknown.tab != tabPeers {
 		t.Fatalf("expected fallback to peers tab, got %v", mUnknown.tab)
 	}

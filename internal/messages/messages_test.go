@@ -11,12 +11,12 @@ import (
 )
 
 func TestNewMessageHandler(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 	assert.NotNil(t, handler)
 }
 
 func TestCreateCommandMessage(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -41,7 +41,7 @@ func TestCreateCommandMessage(t *testing.T) {
 }
 
 func TestCreateResultMessage(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	result := internal.ExecutionResult{
 		ID:       "result1",
@@ -67,7 +67,7 @@ func TestCreateResultMessage(t *testing.T) {
 }
 
 func TestCreatePingMessage(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreatePingMessage("device1")
 
@@ -80,7 +80,7 @@ func TestCreatePingMessage(t *testing.T) {
 }
 
 func TestCreatePongMessage(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	pingID := "ping123"
 	msg := handler.CreatePongMessage(pingID, "device1")
@@ -94,7 +94,7 @@ func TestCreatePongMessage(t *testing.T) {
 }
 
 func TestSerializeMessage(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"echo",
@@ -120,7 +120,7 @@ func TestSerializeMessage(t *testing.T) {
 }
 
 func TestDeserializeMessage_Command(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	originalMsg := handler.CreateCommandMessage(
 		"ls",
@@ -149,7 +149,7 @@ func TestDeserializeMessage_Command(t *testing.T) {
 }
 
 func TestDeserializeMessage_Result(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	result := internal.ExecutionResult{
 		ID:       "result1",
@@ -180,7 +180,7 @@ func TestDeserializeMessage_Result(t *testing.T) {
 }
 
 func TestDeserializeMessage_Ping(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	originalMsg := handler.CreatePingMessage("device1")
 
@@ -199,14 +199,14 @@ func TestDeserializeMessage_Ping(t *testing.T) {
 }
 
 func TestDeserializeMessage_InvalidJSON(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	_, err := handler.DeserializeMessage([]byte("invalid json"))
 	assert.Error(t, err)
 }
 
 func TestDeserializeMessage_UnknownType(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	data := []byte(`{"type": "unknown"}`)
 	_, err := handler.DeserializeMessage(data)
@@ -215,7 +215,7 @@ func TestDeserializeMessage_UnknownType(t *testing.T) {
 }
 
 func TestValidateMessage_Command(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -231,7 +231,7 @@ func TestValidateMessage_Command(t *testing.T) {
 }
 
 func TestValidateMessage_Command_EmptyCommand(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"",
@@ -248,7 +248,7 @@ func TestValidateMessage_Command_EmptyCommand(t *testing.T) {
 }
 
 func TestValidateMessage_Command_InvalidType(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -266,7 +266,7 @@ func TestValidateMessage_Command_InvalidType(t *testing.T) {
 }
 
 func TestValidateMessage_Result(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	result := internal.ExecutionResult{
 		ID:       "result1",
@@ -286,7 +286,7 @@ func TestValidateMessage_Result(t *testing.T) {
 }
 
 func TestValidateMessage_Result_EmptyCommandID(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	result := internal.ExecutionResult{
 		ID:       "result1",
@@ -307,7 +307,7 @@ func TestValidateMessage_Result_EmptyCommandID(t *testing.T) {
 }
 
 func TestValidateMessage_Mesh(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreatePingMessage("device1")
 
@@ -316,7 +316,7 @@ func TestValidateMessage_Mesh(t *testing.T) {
 }
 
 func TestValidateMessage_Mesh_EmptyID(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreatePingMessage("device1")
 	msg.ID = ""
@@ -327,7 +327,7 @@ func TestValidateMessage_Mesh_EmptyID(t *testing.T) {
 }
 
 func TestValidateMessage_Mesh_EmptySender(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreatePingMessage("")
 
@@ -337,18 +337,18 @@ func TestValidateMessage_Mesh_EmptySender(t *testing.T) {
 }
 
 func TestValidateMessage_Mesh_InvalidTTL(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
-	msg := handler.CreatePingMessage("device1")
-	msg.TTL = 0
+    msg := handler.CreatePingMessage("device1")
+    msg.TTL = 0
 
-	err := handler.ValidateMessage(msg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "TTL must be greater than 0")
+    err := handler.ValidateMessage(msg)
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "TTL must be greater than 0")
 }
 
 func TestValidateMessage_Mesh_OldTimestamp(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreatePingMessage("device1")
 	msg.Timestamp = time.Now().Add(-2 * time.Hour).Unix() // 2 hours ago
@@ -359,7 +359,7 @@ func TestValidateMessage_Mesh_OldTimestamp(t *testing.T) {
 }
 
 func TestValidateMessage_UnknownType(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	err := handler.ValidateMessage("not a message")
 	assert.Error(t, err)
@@ -367,7 +367,7 @@ func TestValidateMessage_UnknownType(t *testing.T) {
 }
 
 func TestDecrementTTL(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -398,7 +398,7 @@ func TestDecrementTTL(t *testing.T) {
 }
 
 func TestIsExpired(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -422,7 +422,7 @@ func TestIsExpired(t *testing.T) {
 }
 
 func TestGetMessageID(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -439,7 +439,7 @@ func TestGetMessageID(t *testing.T) {
 }
 
 func TestGetMessageType(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	msg := handler.CreateCommandMessage(
 		"ls",
@@ -455,7 +455,7 @@ func TestGetMessageType(t *testing.T) {
 }
 
 func TestCreateExecutionResult(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	result := handler.CreateExecutionResult(
 		"ls -la",
@@ -478,7 +478,7 @@ func TestCreateExecutionResult(t *testing.T) {
 }
 
 func TestCreateExecutionResults(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	results := []internal.ExecutionResult{
 		{
@@ -517,7 +517,7 @@ func TestCreateExecutionResults(t *testing.T) {
 }
 
 func TestCalculateResultSummary(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	results := []internal.ExecutionResult{
 		{Status: "success", Duration: 100},
@@ -536,7 +536,7 @@ func TestCalculateResultSummary(t *testing.T) {
 }
 
 func TestGenerateMessageID(t *testing.T) {
-	handler := NewMessageHandler()
+    handler := NewMessageHandlerWithLevel("none")
 
 	id1 := handler.generateMessageID()
 	id2 := handler.generateMessageID()

@@ -29,7 +29,7 @@ type Node struct {
 
 // NewNode constructs a MeshNode from a BLE transport and network config.
 func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
-	logger := logging.NewLogger("info") // Default logger for mesh node
+    logger := logging.NewLogger("info") // Default logger for mesh node
 	return &Node{
 		transport: transport,
 		manager:   ble.NewManager(transport, logger),
@@ -41,7 +41,7 @@ func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.Pe
 
 // NewNodeFromConfig builds a native/sim transport using the BLE factory and returns a node.
 func NewNodeFromConfig(cfg *core.Config) (*Node, error) {
-	logger := logging.NewLogger("info") // Create logger for the factory
+    logger := logging.NewLogger("info") // Create logger for the factory
 	t, err := ble.NewWithLogger(&cfg.Network, logger)
 	if err != nil {
 		return nil, err

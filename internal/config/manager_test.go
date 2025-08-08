@@ -14,13 +14,13 @@ import (
 )
 
 func TestNewManager(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	assert.NotNil(t, manager)
 	assert.NotNil(t, manager.viper)
 }
 
 func TestManager_Load_DefaultConfig(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	// Test loading when no config file exists (should return default)
 	config, err := manager.Load()
@@ -67,7 +67,7 @@ execution_timeout = 30000
 	err := os.WriteFile(configPath, []byte(configData), 0644)
 	require.NoError(t, err)
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	config, err := manager.Load()
@@ -89,7 +89,7 @@ func TestManager_Save(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	// Create custom config
@@ -137,7 +137,7 @@ func TestManager_Save(t *testing.T) {
 }
 
 func TestManager_ValidateConfig(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	tests := []struct {
 		name    string
@@ -263,7 +263,7 @@ func TestManager_Watch(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	// Create initial config
@@ -327,7 +327,7 @@ func TestManager_CreateDefaultConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	// Create default config
@@ -350,7 +350,7 @@ func TestManager_CreateDefaultConfig(t *testing.T) {
 }
 
 func TestManager_GetConfigPaths(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	paths := manager.getConfigPaths()
 
 	// Should include current directory
@@ -370,7 +370,7 @@ func TestManager_GetConfigPaths(t *testing.T) {
 }
 
 func TestManager_GetUserConfigDir(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	userConfigDir, err := manager.getUserConfigDir()
 	if err != nil {
@@ -383,7 +383,7 @@ func TestManager_GetUserConfigDir(t *testing.T) {
 }
 
 func TestManager_GetSystemConfigDir(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	systemConfigDir := manager.getSystemConfigDir()
 	// System config dir might be empty on some systems, which is OK
@@ -393,7 +393,7 @@ func TestManager_GetSystemConfigDir(t *testing.T) {
 }
 
 func TestManager_CrossPlatformConfigLoading(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	// Test that config paths are correctly determined for different platforms
 	paths := manager.getConfigPaths()
@@ -420,7 +420,7 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	// Create initial config
@@ -484,7 +484,7 @@ func TestManager_CrossPlatformFileWatching(t *testing.T) {
 }
 
 func TestManager_PlatformSpecificPathHandling(t *testing.T) {
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 
 	// Test Windows-specific path handling
 	if runtime.GOOS == "windows" {
@@ -523,7 +523,7 @@ func TestManager_FilePermissions(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.toml")
 
-	manager := NewManager()
+    manager := NewManagerWithLevel("none")
 	manager.SetConfigPath(configPath)
 
 	// Test that config file is created with appropriate permissions

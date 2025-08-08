@@ -21,6 +21,14 @@ func NewEvaluator() *Evaluator {
 	}
 }
 
+// NewEvaluatorWithLevel creates a new evaluator with a configurable log level.
+// Useful for tests where logs should be silenced by passing level "none".
+func NewEvaluatorWithLevel(level string) *Evaluator {
+    return &Evaluator{
+        logger: logging.NewLogger(level),
+    }
+}
+
 // Evaluate evaluates a target expression against device information
 func (e *Evaluator) Evaluate(expression string, device *internal.DeviceInfo) (bool, error) {
 	if device == nil {
