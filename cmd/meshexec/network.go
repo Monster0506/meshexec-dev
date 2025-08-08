@@ -29,12 +29,12 @@ var joinCmd = &cobra.Command{
         }
 
         // Initialize BLE
-        transport, err := ble.New(&cfg.Network)
+        transport, err := ble.NewWithLogger(&cfg.Network, logger)
         if err != nil {
             fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
             os.Exit(1)
         }
-        mgr := ble.NewManager(transport)
+        mgr := ble.NewManager(transport, logger)
 
         // Try to advertise; Windows backend will return error (unsupported)
         advCtx, advCancel := context.WithCancel(context.Background())
@@ -86,12 +86,12 @@ var listCmd = &cobra.Command{
             os.Exit(1)
         }
 
-        transport, err := ble.New(&cfg.Network)
+        transport, err := ble.NewWithLogger(&cfg.Network, logger)
         if err != nil {
             fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
             os.Exit(1)
         }
-        mgr := ble.NewManager(transport)
+        mgr := ble.NewManager(transport, logger)
 
         ctx, cancel := context.WithTimeout(context.Background(), timeout)
         defer cancel()

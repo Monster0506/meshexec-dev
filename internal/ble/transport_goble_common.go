@@ -10,12 +10,14 @@ import (
 
     goble "github.com/go-ble/ble"
     core "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
 // nativeTransport is a go-ble backed implementation of core.BLETransport.
 type nativeTransport struct {
     device    goble.Device
     cfg       *core.NetworkConfig
+    logger    *logging.Logger
 
     // cached service/characteristic for future use
     svc       *goble.Service
@@ -26,12 +28,36 @@ type nativeTransport struct {
 
 // NewNativeTransport initializes the platform BLE device and returns a transport.
 func NewNativeTransport(cfg *core.NetworkConfig) (core.BLETransport, error) {
+    return newNativeWithLogger(cfg, nil)
+}
+
+// newNativeWithLogger initializes the platform BLE device with a logger.
+func newNativeWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, error) {
+    if logger == nil {
+        logger = logging.NewLogger("info")
+    }
+    
+    logger.Info("Initializing native BLE transport", nil)
+    
     dev, err := newDevice()
     if err != nil {
+        logger.Error("Failed to initialize BLE device", err, nil)
         return nil, err
     }
+    
     goble.SetDefaultDevice(dev)
-    return &nativeTransport{device: dev, cfg: cfg}, nil
+    
+    transport := &nativeTransport{
+        device: dev,
+        cfg:    cfg,
+        logger: logger,
+    }
+    
+    logger.Info("Native BLE transport initialized successfully", map[string]interface{}{
+        "device_type": "go-ble",
+    })
+    
+    return transport, nil
 }
 
 // Advertise starts advertising the local name and a single service UUID.
@@ -45,19 +71,44 @@ func (t *nativeTransport) Advertise(ctx context.Context, serviceData []byte) err
     } else {
         su = core.DefaultConfig().Network.ServiceUUID
     }
+    
     svcUUID := goble.MustParse(su)
     name := "meshexec"
+    
+    t.logger.Info("Starting native BLE advertisement", map[string]interface{}{
+        "service_uuid": su,
+        "device_name": name,
+        "service_data_length": len(serviceData),
+    })
+    
     // This call blocks until ctx is canceled
-    return goble.AdvertiseNameAndServices(ctx, name, svcUUID)
+    err := goble.AdvertiseNameAndServices(ctx, name, svcUUID)
+    if err != nil {
+        t.logger.Error("Native BLE advertisement failed", err, map[string]interface{}{
+            "service_uuid": su,
+        })
+    } else {
+        t.logger.Info("Native BLE advertisement stopped", map[string]interface{}{
+            "service_uuid": su,
+        })
+    }
+    
+    return err
 }
 
 // Scan performs a BLE scan and forwards advertisements to a channel.
 func (t *nativeTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
     out := make(chan *core.Advertisement, 32)
+    
+    t.logger.Info("Starting native BLE scan", nil)
 
     go func() {
         defer close(out)
+        defer t.logger.Info("Native BLE scan stopped", nil)
+        
+        scanCount := 0
         _ = goble.Scan(ctx, true, func(a goble.Advertisement) {
+            scanCount++
             sd := map[string][]byte{}
             // Map service data if available
             for _, u := range a.Services() {
@@ -66,17 +117,32 @@ func (t *nativeTransport) Scan(ctx context.Context) (<-chan *core.Advertisement,
                 }
             }
             adv := &core.Advertisement{
-                Address:   a.Addr().String(),
-                Name:      a.LocalName(),
+                Address:     a.Addr().String(),
+                Name:        a.LocalName(),
                 ServiceData: sd,
-                RSSI:      a.RSSI(),
-                Timestamp: time.Now(),
+                RSSI:        a.RSSI(),
+                Timestamp:   time.Now(),
             }
+            
+            t.logger.Debug("Native BLE advertisement received", map[string]interface{}{
+                "address": adv.Address,
+                "name": adv.Name,
+                "rssi": adv.RSSI,
+                "services_count": len(a.Services()),
+                "scan_count": scanCount,
+            })
+            
             select {
             case out <- adv:
             default:
-                // drop if receiver is slow
+                t.logger.Warn("Dropped BLE advertisement - slow receiver", map[string]interface{}{
+                    "address": adv.Address,
+                })
             }
+        })
+        
+        t.logger.Info("Native BLE scan completed", map[string]interface{}{
+            "total_advertisements": scanCount,
         })
     }()
 
@@ -86,16 +152,32 @@ func (t *nativeTransport) Scan(ctx context.Context) (<-chan *core.Advertisement,
 // Connect dials a remote BLE peripheral.
 func (t *nativeTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
     if addr == "" {
+        t.logger.Error("Connection attempt with empty address", nil, nil)
         return nil, errors.New("addr is required")
     }
+    
+    t.logger.Info("Attempting native BLE connection", map[string]interface{}{
+        "target_address": addr,
+    })
+    
     c, err := goble.Dial(ctx, addr)
     if err != nil {
+        t.logger.Error("Native BLE connection failed", err, map[string]interface{}{
+            "target_address": addr,
+        })
         return nil, err
     }
+    
     mtu := 0
     if c != nil {
         mtu = c.AttMTU()
     }
+    
+    t.logger.Info("Native BLE connection established", map[string]interface{}{
+        "address": addr,
+        "mtu": mtu,
+    })
+    
     return &core.Connection{Address: addr, MTU: mtu, Connected: true}, nil
 }
 
@@ -116,6 +198,11 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
         cu = core.DefaultConfig().Network.CharacteristicUUID
     }
 
+    t.logger.Info("Creating native GATT service", map[string]interface{}{
+        "service_uuid": su,
+        "characteristic_uuid": cu,
+    })
+
     svc := goble.NewService(goble.MustParse(su))
     chr := svc.NewCharacteristic(goble.MustParse(cu))
 
@@ -126,6 +213,9 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
     chr.SetValue([]byte("ready"))
 
     if err := goble.AddService(svc); err != nil {
+        t.logger.Error("Failed to add GATT service", err, map[string]interface{}{
+            "service_uuid": su,
+        })
         return nil, err
     }
 
@@ -133,6 +223,11 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
     t.svc = svc
     t.chr = chr
     t.mu.Unlock()
+
+    t.logger.Info("Native GATT service created successfully", map[string]interface{}{
+        "service_uuid": su,
+        "characteristic_uuid": cu,
+    })
 
     return &core.GATTService{
         UUID: su,

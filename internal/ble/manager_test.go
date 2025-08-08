@@ -6,6 +6,7 @@ import (
     "time"
 
     core "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
 type mockTransport struct {
@@ -62,7 +63,8 @@ func (m *mockTransport) CreateGATTService() (*core.GATTService, error) {
 
 func TestManagerStartDiscoveryAndUpdates(t *testing.T) {
     mt := newMockTransport()
-    mgr := NewManager(mt)
+    logger := logging.NewLogger("error") // Use error level to reduce test noise
+    mgr := NewManager(mt, logger)
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -97,7 +99,8 @@ func TestManagerStartDiscoveryAndUpdates(t *testing.T) {
 
 func TestManagerConnectUpdatesPeer(t *testing.T) {
     mt := newMockTransport()
-    mgr := NewManager(mt)
+    logger := logging.NewLogger("error") // Use error level to reduce test noise
+    mgr := NewManager(mt, logger)
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()

@@ -11,6 +11,7 @@ import (
     "time"
 
     core "github.com/monster0506/meshexec/internal"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
 // Transport is a minimal in-memory implementation of core.BLETransport.
@@ -21,6 +22,7 @@ import (
 // or tinygo.org/x/bluetooth) in subsequent tasks.
 type Transport struct {
     mu                 sync.RWMutex
+    logger             *logging.Logger
     localAddress       string
     localName          string
     advertisedData     []byte
@@ -39,22 +41,48 @@ type Transport struct {
 
 // NewTransport creates a new simulated BLE transport.
 func NewTransport() *Transport {
+    return NewTransportWithLogger(nil)
+}
+
+// NewTransportWithLogger creates a new simulated BLE transport with a logger.
+func NewTransportWithLogger(logger *logging.Logger) *Transport {
+    if logger == nil {
+        logger = logging.NewLogger("info")
+    }
+    
     name := hostnameOrDefault("meshexec")
-    return &Transport{
-        localAddress:      randomMAC(),
+    address := randomMAC()
+    
+    transport := &Transport{
+        logger:            logger,
+        localAddress:      address,
         localName:         name,
         advertiseInterval: 1 * time.Second,
         scanSubscribers:   make(map[int]chan *core.Advertisement),
         connectionState:   make(map[string]*core.Connection),
     }
+    
+    logger.Info("Simulated BLE transport initialized", map[string]interface{}{
+        "local_address": address,
+        "local_name": name,
+        "advertise_interval_ms": transport.advertiseInterval.Milliseconds(),
+    })
+    
+    return transport
 }
 
 // Advertise starts broadcasting the provided service data periodically to all
 // active Scan subscribers. It runs until the context is cancelled.
 func (t *Transport) Advertise(ctx context.Context, serviceData []byte) error {
+    t.logger.Info("Starting BLE advertisement", map[string]interface{}{
+        "service_data_length": len(serviceData),
+        "interval_ms": t.advertiseInterval.Milliseconds(),
+    })
+    
     t.mu.Lock()
     // Cancel any prior advertising loop
     if t.stopAdvertise != nil {
+        t.logger.Debug("Stopping previous advertisement", nil)
         t.stopAdvertise()
         t.stopAdvertise = nil
     }
@@ -68,21 +96,45 @@ func (t *Transport) Advertise(ctx context.Context, serviceData []byte) error {
     t.mu.Unlock()
 
     go func() {
+        t.logger.Debug("Advertisement broadcast loop started", map[string]interface{}{
+            "address": addr,
+            "name": name,
+        })
+        
         ticker := time.NewTicker(interval)
         defer ticker.Stop()
+        defer t.logger.Debug("Advertisement broadcast loop ended", nil)
+        
+        broadcastCount := 0
         // On first start, emit one advertisement immediately
         t.broadcastAdvertisement(addr, name, serviceData, -40)
+        broadcastCount++
+        
         for {
             select {
             case <-advCtx.Done():
+                t.logger.Debug("Advertisement stopped via context", map[string]interface{}{
+                    "total_broadcasts": broadcastCount,
+                })
                 return
             case <-ctx.Done():
                 cancel()
+                t.logger.Info("Advertisement stopped - context cancelled", map[string]interface{}{
+                    "total_broadcasts": broadcastCount,
+                })
                 return
             case <-ticker.C:
                 // Simulate variable RSSI
                 rssi := -30 - rand.Intn(50)
                 t.broadcastAdvertisement(addr, name, serviceData, rssi)
+                broadcastCount++
+                
+                if broadcastCount%10 == 0 {
+                    t.logger.Debug("Advertisement broadcast progress", map[string]interface{}{
+                        "total_broadcasts": broadcastCount,
+                        "current_rssi": rssi,
+                    })
+                }
             }
         }
     }()
@@ -100,6 +152,10 @@ func (t *Transport) Scan(ctx context.Context) (<-chan *core.Advertisement, error
     id := t.nextSubscriberID
     t.nextSubscriberID++
     t.scanSubscribers[id] = ch
+    t.logger.Debug("New scan subscription created", map[string]interface{}{
+        "subscription_id": id,
+        "total_subscribers": len(t.scanSubscribers),
+    })
     t.mu.Unlock()
 
     go func() {
@@ -107,17 +163,32 @@ func (t *Transport) Scan(ctx context.Context) (<-chan *core.Advertisement, error
         t.mu.Lock()
         delete(t.scanSubscribers, id)
         close(ch)
+        t.logger.Debug("Scan subscription closed", map[string]interface{}{
+            "subscription_id": id,
+            "remaining_subscribers": len(t.scanSubscribers),
+        })
         t.mu.Unlock()
     }()
 
+    t.logger.Info("BLE scan started", map[string]interface{}{
+        "subscription_id": id,
+    })
     return ch, nil
 }
 
 // Connect simulates establishing a connection to a device by address.
 // For now, only the local device address is recognized.
 func (t *Transport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
+    t.logger.Info("Attempting to connect to device", map[string]interface{}{
+        "target_address": addr,
+        "local_address": t.localAddress,
+    })
+    
     select {
     case <-ctx.Done():
+        t.logger.Warn("Connection attempt cancelled by context", map[string]interface{}{
+            "target_address": addr,
+        })
         return nil, ctx.Err()
     default:
     }
@@ -126,31 +197,52 @@ func (t *Transport) Connect(ctx context.Context, addr string) (*core.Connection,
     defer t.mu.Unlock()
 
     if !isMAC(addr) {
+        t.logger.Error("Invalid MAC address format", nil, map[string]interface{}{
+            "address": addr,
+        })
         return nil, errors.New("invalid address format; expected MAC-like string XX:XX:XX:XX:XX:XX")
     }
 
     conn, exists := t.connectionState[addr]
     if !exists {
         if addr != t.localAddress {
+            t.logger.Warn("Connection attempt to unknown remote address", map[string]interface{}{
+                "target_address": addr,
+                "local_address": t.localAddress,
+            })
             return nil, errors.New("simulated transport: remote address not found")
         }
         conn = &core.Connection{Address: addr, MTU: 185, Connected: true}
         t.connectionState[addr] = conn
+        t.logger.Info("New connection established", map[string]interface{}{
+            "address": addr,
+            "mtu": conn.MTU,
+        })
     } else {
         conn.Connected = true
+        t.logger.Debug("Existing connection reactivated", map[string]interface{}{
+            "address": addr,
+            "mtu": conn.MTU,
+        })
     }
     return conn, nil
 }
 
 // CreateGATTService returns a minimal placeholder GATT service description.
 func (t *Transport) CreateGATTService() (*core.GATTService, error) {
-    // Placeholder UUID for MechExec; to be replaced with configured UUID.
-    return &core.GATTService{
+    service := &core.GATTService{
         UUID: "0000-MECH-EXEC-0000",
         Characteristics: []core.GATTCharacteristic{
             {UUID: "0000-MECH-CHAR-0001"},
         },
-    }, nil
+    }
+    
+    t.logger.Info("Created GATT service", map[string]interface{}{
+        "service_uuid": service.UUID,
+        "characteristics_count": len(service.Characteristics),
+    })
+    
+    return service, nil
 }
 
 // broadcastAdvertisement sends an advertisement to all active subscribers.
@@ -167,12 +259,26 @@ func (t *Transport) broadcastAdvertisement(addr, name string, serviceData []byte
 
     t.mu.RLock()
     defer t.mu.RUnlock()
+    
+    sent := 0
+    dropped := 0
     for _, sub := range t.scanSubscribers {
         // Non-blocking send; drop if subscriber is slow
         select {
         case sub <- adv:
+            sent++
         default:
+            dropped++
         }
+    }
+    
+    // Log broadcast statistics periodically
+    if dropped > 0 {
+        t.logger.Warn("Advertisement broadcast dropped to slow subscribers", map[string]interface{}{
+            "sent": sent,
+            "dropped": dropped,
+            "rssi": rssi,
+        })
     }
 }
 

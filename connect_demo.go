@@ -8,6 +8,7 @@ import (
 
   "github.com/monster0506/meshexec/internal"
   "github.com/monster0506/meshexec/internal/ble"
+  "github.com/monster0506/meshexec/internal/logging"
 )
 
 func main() {
@@ -23,7 +24,8 @@ func main() {
   defer advCancel()
   _ = t.Advertise(advCtx, []byte("meshexec"))
 
-  m := ble.NewManager(t)
+  logger := logging.NewLogger("info")
+  m := ble.NewManager(t, logger)
 
   ctx, cancel := context.WithCancel(context.Background())
   defer cancel()

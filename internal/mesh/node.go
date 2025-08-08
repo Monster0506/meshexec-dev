@@ -7,6 +7,7 @@ import (
 
     core "github.com/monster0506/meshexec/internal"
     "github.com/monster0506/meshexec/internal/ble"
+    "github.com/monster0506/meshexec/internal/logging"
 )
 
 // Node implements core.MeshNode, orchestrating BLE discovery/advertising
@@ -28,9 +29,10 @@ type Node struct {
 
 // NewNode constructs a MeshNode from a BLE transport and network config.
 func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
+    logger := logging.NewLogger("info") // Default logger for mesh node
     return &Node{
         transport: transport,
-        manager:   ble.NewManager(transport),
+        manager:   ble.NewManager(transport, logger),
         cfg:       cfg,
         localPeer: local,
         subs:      make(map[core.MessageType][]chan *core.MeshMessage),
@@ -39,7 +41,8 @@ func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.Pe
 
 // NewNodeFromConfig builds a native/sim transport using the BLE factory and returns a node.
 func NewNodeFromConfig(cfg *core.Config) (*Node, error) {
-    t, err := ble.New(&cfg.Network)
+    logger := logging.NewLogger("info") // Create logger for the factory
+    t, err := ble.NewWithLogger(&cfg.Network, logger)
     if err != nil {
         return nil, err
     }
