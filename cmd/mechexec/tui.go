@@ -14,6 +14,9 @@ var tuiCmd = &cobra.Command{
     Short: "Launch the MechExec terminal UI",
     RunE: func(cmd *cobra.Command, args []string) error {
         // Use root logging
+        if logger != nil {
+            logger.Info("Starting TUI with initial view", map[string]interface{}{"view": tuiView})
+        }
         ui := tui.NewManager(logger)
 
         // For now, seed with some demo data until real integrations are implemented
@@ -56,11 +59,15 @@ var tuiCmd = &cobra.Command{
             ui.UpdateResults(res)
         }()
 
-        return ui.StartTUI(ctx)
+        // Pass initial view into the TUI manager
+        return ui.StartTUI(ctx, tui.WithInitialView(tuiView))
     },
 }
 
 func init() {
     rootCmd.AddCommand(tuiCmd)
+    tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: peers|results|overview")
 }
+
+var tuiView string
 

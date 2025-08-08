@@ -22,9 +22,27 @@ func NewManager(logger *logging.Logger) *Manager {
     return &Manager{logger: logger}
 }
 
+// Options for starting the TUI
+type options struct {
+    initialView string
+}
+
+type Option func(*options)
+
+func defaultOptions() options { return options{initialView: ""} }
+
+// WithInitialView sets the initial view key (e.g., "overview", "peers", "results")
+func WithInitialView(view string) Option { return func(o *options) { o.initialView = view } }
+
 // StartTUI launches the Bubble Tea program and blocks until it exits
-func (m *Manager) StartTUI(ctx context.Context) error {
+func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
+    cfg := defaultOptions()
+    for _, opt := range opts {
+        opt(&cfg)
+    }
+
     model := newModel(m.logger)
+    // Note: initialView option will be used when model supports it
     m.mu.Lock()
     m.program = tea.NewProgram(model, tea.WithContext(ctx))
     m.mu.Unlock()
