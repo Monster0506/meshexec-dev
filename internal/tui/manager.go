@@ -41,6 +41,19 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
         opt(&cfg)
     }
 
+    // Validate initial view early to provide clear feedback
+    if cfg.initialView != "" {
+        switch cfg.initialView {
+        case "overview", "peers", "results", "commands":
+            // ok
+        default:
+            if m.logger != nil {
+                m.logger.Warn("Unknown initial view; falling back to overview", map[string]interface{}{"view": cfg.initialView})
+            }
+            cfg.initialView = "overview"
+        }
+    }
+
     var model model
     if cfg.initialView != "" {
         model = newModelWithInitialView(m.logger, cfg.initialView)
@@ -54,6 +67,9 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
     // Watch for context cancellation and request quit
     go func() {
         <-ctx.Done()
+        if m.logger != nil {
+            m.logger.Debug("TUI context cancelled; quitting program", nil)
+        }
         m.mu.Lock()
         if m.program != nil {
             m.program.Quit()
@@ -62,10 +78,19 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
     }()
 
     if m.logger != nil {
-        m.logger.Info("Starting TUI", nil)
+        m.logger.Info("Starting TUI", map[string]interface{}{"initial_view": cfg.initialView})
     }
     _, err := m.program.Run()
-    return err
+    if err != nil {
+        if m.logger != nil {
+            m.logger.Error("TUI exited with error", err, nil)
+        }
+        return err
+    }
+    if m.logger != nil {
+        m.logger.Info("TUI exited cleanly", nil)
+    }
+    return nil
 }
 
 // UpdateResults sends new execution results into the TUI
@@ -73,6 +98,12 @@ func (m *Manager) UpdateResults(results *internal.ExecutionResults) {
     m.mu.Lock()
     defer m.mu.Unlock()
     if m.program != nil && results != nil {
+        if m.logger != nil {
+            m.logger.Debug("Updating TUI results", map[string]interface{}{
+                "command_id": results.CommandID,
+                "results_count": len(results.Results),
+            })
+        }
         m.program.Send(resultsUpdateMsg{Results: results})
     }
 }
@@ -82,6 +113,9 @@ func (m *Manager) UpdatePeers(peers []internal.PeerInfo) {
     m.mu.Lock()
     defer m.mu.Unlock()
     if m.program != nil {
+        if m.logger != nil {
+            m.logger.Debug("Updating TUI peers", map[string]interface{}{"count": len(peers)})
+        }
         m.program.Send(peersUpdateMsg{Peers: peers})
     }
 }
