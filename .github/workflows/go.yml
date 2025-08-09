@@ -139,7 +139,7 @@ jobs:
         with:
           files: coverage.out
           fail_ci_if_error: true
-          # token: ${{ secrets.CODECOV_TOKEN }} # Uncomment if your repo is private and requires a Codecov token
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # Job for security and dependency checks.
   security-checks:
