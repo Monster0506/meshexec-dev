@@ -13,6 +13,20 @@ import (
 	"github.com/monster0506/meshexec/internal/logging"
 )
 
+// Local adapters to satisfy go-ble handler interfaces using plain funcs.
+// These avoid relying on upstream *HandlerFunc helpers that may vary by version.
+type readHandlerFunc func(req goble.Request, rsp goble.ResponseWriter)
+
+func (f readHandlerFunc) ServeRead(req goble.Request, rsp goble.ResponseWriter) { f(req, rsp) }
+
+type writeHandlerFunc func(req goble.Request, rsp goble.ResponseWriter)
+
+func (f writeHandlerFunc) ServeWrite(req goble.Request, rsp goble.ResponseWriter) { f(req, rsp) }
+
+type notifyHandlerFunc func(req goble.Request, n goble.Notifier)
+
+func (f notifyHandlerFunc) ServeNotify(req goble.Request, n goble.Notifier) { f(req, n) }
+
 // nativeTransport is a go-ble backed implementation of core.BLETransport.
 type nativeTransport struct {
 	device goble.Device
@@ -216,31 +230,34 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
     t.mu.Unlock()
 
     // Read handler returns latest value
-    chr.HandleRead(func(req goble.Request, rsp goble.ResponseWriter) {
+    chr.HandleRead(readHandlerFunc(func(req goble.Request, rsp goble.ResponseWriter) {
         t.mu.RLock()
         v := append([]byte(nil), t.chrValue...)
         t.mu.RUnlock()
         _, _ = rsp.Write(v)
-    })
+    }))
 
     // Write handler updates characteristic value (acts as ingress)
-    chr.HandleWrite(func(req goble.Request, data []byte) (status byte) {
+    chr.HandleWrite(writeHandlerFunc(func(req goble.Request, rsp goble.ResponseWriter) {
+        // Expect data to come from req.Data() in this go-ble version
+        data := req.Data()
         t.mu.Lock()
         t.chrValue = append([]byte(nil), data...)
         t.mu.Unlock()
         t.logger.Debug("GATT characteristic write received", map[string]interface{}{
             "len": len(data),
         })
-        return 0 // success
-    })
+        // Indicate success via response writer status if supported
+        rsp.SetStatus(0)
+    }))
 
     // Notify handler sends current value periodically to subscriber
-    chr.HandleNotify(func(req goble.Request, n goble.Notifier) {
+    chr.HandleNotify(notifyHandlerFunc(func(req goble.Request, n goble.Notifier) {
         ticker := time.NewTicker(2 * time.Second)
         defer ticker.Stop()
         for {
             select {
-            case <-req.Context().Done():
+            case <-n.Context().Done():
                 return
             case <-ticker.C:
                 t.mu.RLock()
@@ -249,13 +266,13 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
                 if len(v) == 0 {
                     v = []byte("ready")
                 }
-                if err := n.Write(v); err != nil {
+                if _, err := n.Write(v); err != nil {
                     t.logger.Debug("Notifier write ended", map[string]interface{}{"err": err.Error()})
                     return
                 }
             }
         }
-    })
+    }))
 
     if err := goble.AddService(svc); err != nil {
 		t.logger.Error("Failed to add GATT service", err, map[string]interface{}{
