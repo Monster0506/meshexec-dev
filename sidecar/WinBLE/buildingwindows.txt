@@ -1,4 +1,4 @@
-$project = "C:\Users\TJ\Documents\Code\go\meshexec"
+$project = "" # replace with your project path
 dotnet build $project/sidecar/WinBLE/WinBLE.csproj -c Release                     
 dotnet publish $project/sidecar/WinBLE/WinBLE.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 
@@ -23,6 +23,8 @@ $p | Format-List Name, PackageFamilyName, PackageFullName
 
 explorer.exe "shell:AppsFolder\$($p.PackageFamilyName)!App"
 
+
+## VIEW LOGS ##
 $log = Join-Path (Join-Path $env:LOCALAPPDATA "Packages\$($p.PackageFamilyName)\LocalState") "WinBLE.log"
 $log
 Get-Content -Path $log -Wait
