@@ -68,19 +68,19 @@ func (n *Node) Start(ctx context.Context) error {
 	n.started = true
 	n.startedMu.Unlock()
 
-	// Ensure GATT service exists
-	if _, err := n.transport.CreateGATTService(); err != nil {
-		return err
-	}
+    // Try to create GATT service; if unsupported on this platform/transport, continue without it
+    if _, err := n.transport.CreateGATTService(); err != nil {
+        // proceed without GATT service (e.g., Windows central-only path)
+    }
 
 	// Start advertising in a cancellable context
 	advCtx, advCancel := context.WithCancel(context.Background())
 	n.advCancel = advCancel
 	// Use a minimal serviceData marker; future: encode discovery metadata
-	if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
-		advCancel()
-		return err
-	}
+    if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
+        // proceed with scanning only when advertising is unavailable
+        advCancel()
+    }
 
 	// Start discovery
 	if err := n.manager.StartDiscovery(ctx); err != nil {

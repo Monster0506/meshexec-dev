@@ -1,27 +1,248 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go
-# Edit at https://www.toptal.com/developers/gitignore?templates=go
-
-### Go ###
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Compiled Binaries, Executables, and Libraries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-
-# Test binary, built with `go test -c`
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+sidecar/WinBLE/msix/WinBLE.msix
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.appx
+*.appxbundle
+*.appxupload
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+ClientBin/
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Intermediate Build Files and Directories
+**/bin/
+**/obj/
+[Bb]in/
+[Oo]bj/
+bld/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Dd]ebugPS/
+[Rr]eleasePS/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+artifacts/
+BenchmarkDotNet.Artifacts/
+Generated\ Files/
+Generated_Code/
+orleans.codegen.cs
+dlldata.c
+*_i.c
+*_p.c
+*_h.h
+*.obj
+*.iobj
+*.pch
+*.ilk
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+FakesAssemblies/
+csx/
+*.build.csdef
+ecf/
+rcf/
+*.binlog
+*.tss
+*.jmconfig
+*.btp.cs
+*.btm.cs
+*.odx.cs
+*.xsd.cs
+**/*.HTMLClient/GeneratedArtifacts
+**/*.DesktopClient/GeneratedArtifacts
+**/*.DesktopClient/ModelManifest.xml
+**/*.Server/GeneratedArtifacts
+**/*.Server/ModelManifest.xml
+_Pvt_Extensions
+FodyWeavers.xsd
 
-# Go workspace file
+# Dependency and Package Management
 go.work
+node_modules/
+.sass-cache/
+[Ee]xpress/
+__pycache__/
+*.pyc
+*.nuget.cache
+project.lock.json
+project.fragment.lock.json
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+.paket/paket.exe
+paket-files/
+.fake/
 
-# End of https://www.toptal.com/developers/gitignore/api/go
+# IDE and Editor Files
+.vs/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.VisualState.xml
+*.vspscc
+*.vssscc
+*.pidb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+*.aps
+*.ncb
+*.psess
+*.vsp
+*.vspx
+*.sap
+*.e2e
+*.plg
+*.opt
+*.vbw
+*.vbp
+*.dsw
+*.dsp
+.ntvs_analysis.dat
+.mfractor/
+.ionide/
+*.nvuser
+*.sln.iml
+
+# IDE Specific - ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# IDE Specific - VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Test and Code Coverage
+[Tt]est[Rr]esult*/
+TestResult.xml
+nunit-*.xml
+_Chutzpah*
+*.dotCover
+.axoCover/*
+!.axoCover/settings.json
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+AutoTest.Net/
+OpenCover/
+
+# Database and Data Files
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.mdf
+*.ldf
+*.ndf
+healthchecksdb
+MigrationBackup/
+
+# Reporting Services and Business Intelligence
+*.rptproj.bak
+*.rdl.data
+*.bim.layout
+*.bim_*.settings
+*.rptproj.rsuser
+*- [Bb]ackup.rdl
+*- [Bb]ackup ([0-9]).rdl
+*- [Bb]ackup ([0-9][0-9]).rdl
+
+# Deployment and Publishing Files
+publish/
+*.[Pp]ublish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+PublishScripts/
+*.pfx
+*.publishsettings
+ASALocalRun/
+
+# Documentation and Analysis Reports
+ScaffoldingReadMe.txt
+StyleCopReport.xml
+DocProject/buildhelp/
+DocProject/Help/*.HxT
+DocProject/Help/*.HxC
+DocProject/Help/*.hhc
+DocProject/Help/*.hhk
+DocProject/Help/*.hhp
+DocProject/Help/Html2
+DocProject/Help/html
+*.GhostDoc.xml
+
+# Logs and Crash Dumps
+[Ll]og/
+[Ll]ogs/
+mono_crash.*
+*.log
+*.tlog
+*.svclog
+
+# Temporary, Cache, and Miscellaneous Files
+*.cache
+*.[Cc]ache
+!?*.[Cc]ache/
+~$*
+*~
+*.meta
+*.mm.*
+
+# Version Control and Backup Specific Files
+$tf/
+*.gpState
+_TeamCity*
+.cr/personal
+_UpgradeReport_Files/
+Backup*/
+UpgradeLog*.XML
+UpgradeLog*.htm
+ServiceFabricBackup/
+.localhistory/
+.vshistory/
+.history/

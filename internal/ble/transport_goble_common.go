@@ -207,26 +207,67 @@ func (t *nativeTransport) CreateGATTService() (*core.GATTService, error) {
 		"characteristic_uuid": cu,
 	})
 
-	svc := goble.NewService(goble.MustParse(su))
-	chr := svc.NewCharacteristic(goble.MustParse(cu))
+    svc := goble.NewService(goble.MustParse(su))
+    chr := svc.NewCharacteristic(goble.MustParse(cu))
 
-	// Provide a static value for now to support read requests
-	t.mu.Lock()
-	t.chrValue = []byte("ready")
-	t.mu.Unlock()
-	chr.SetValue([]byte("ready"))
+    // Provide a default value and implement read/write/notify handlers
+    t.mu.Lock()
+    t.chrValue = []byte("ready")
+    t.mu.Unlock()
 
-	if err := goble.AddService(svc); err != nil {
+    // Read handler returns latest value
+    chr.HandleRead(func(req goble.Request, rsp goble.ResponseWriter) {
+        t.mu.RLock()
+        v := append([]byte(nil), t.chrValue...)
+        t.mu.RUnlock()
+        _, _ = rsp.Write(v)
+    })
+
+    // Write handler updates characteristic value (acts as ingress)
+    chr.HandleWrite(func(req goble.Request, data []byte) (status byte) {
+        t.mu.Lock()
+        t.chrValue = append([]byte(nil), data...)
+        t.mu.Unlock()
+        t.logger.Debug("GATT characteristic write received", map[string]interface{}{
+            "len": len(data),
+        })
+        return 0 // success
+    })
+
+    // Notify handler sends current value periodically to subscriber
+    chr.HandleNotify(func(req goble.Request, n goble.Notifier) {
+        ticker := time.NewTicker(2 * time.Second)
+        defer ticker.Stop()
+        for {
+            select {
+            case <-req.Context().Done():
+                return
+            case <-ticker.C:
+                t.mu.RLock()
+                v := append([]byte(nil), t.chrValue...)
+                t.mu.RUnlock()
+                if len(v) == 0 {
+                    v = []byte("ready")
+                }
+                if err := n.Write(v); err != nil {
+                    t.logger.Debug("Notifier write ended", map[string]interface{}{"err": err.Error()})
+                    return
+                }
+            }
+        }
+    })
+
+    if err := goble.AddService(svc); err != nil {
 		t.logger.Error("Failed to add GATT service", err, map[string]interface{}{
 			"service_uuid": su,
 		})
 		return nil, err
 	}
 
-	t.mu.Lock()
-	t.svc = svc
-	t.chr = chr
-	t.mu.Unlock()
+    t.mu.Lock()
+    t.svc = svc
+    t.chr = chr
+    t.mu.Unlock()
 
 	t.logger.Info("Native GATT service created successfully", map[string]interface{}{
 		"service_uuid":        su,

@@ -307,3 +307,15 @@ func isMAC(s string) bool {
 	// A minimal sanity check; we rely on format only here
 	return true
 }
+
+// tryNewWinRT is provided by a Windows-specific file when built with the winrt tag.
+// The default here returns (nil, false, nil) meaning "not available".
+func tryNewWinRT(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, bool, error) {
+    return nil, false, nil
+}
+
+// tryNewSidecar is provided by a Windows-specific file when built with sidecar support.
+// The default here returns (nil, false, nil) meaning "not available".
+func tryNewSidecar(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, bool, error) {
+    return nil, false, nil
+}

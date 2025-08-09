@@ -2,7 +2,7 @@ module github.com/monster0506/meshexec
 
 go 1.23.0
 
-toolchain go1.23.11
+toolchain go1.26
 
 require (
 	github.com/BurntSushi/toml v1.5.0
@@ -49,7 +49,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sahilm/fuzzy v0.1.1-0.20230530133925-c48e322e2a8f // indirect
-	github.com/saltosystems/winrt-go v0.0.0-20240509164145-4f7860a3bd2b // indirect
+	github.com/saltosystems/winrt-go v0.0.0-20241223121953-98e32661f6ff // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/soypat/cyw43439 v0.0.0-20250505012923-830110c8f4af // indirect
