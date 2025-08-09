@@ -42,6 +42,7 @@ jobs:
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
       - name: Check formatting (gofmt)
+        shell: bash
         run: |
           fmt_out=$(gofmt -l .)
           if [ -n "$fmt_out" ]; then
@@ -51,6 +52,8 @@ jobs:
           fi
 
       - name: Check imports (goimports)
+        shell: bash
+
         run: |
           imp_out=$(goimports -l .)
           if [ -n "$imp_out" ]; then
