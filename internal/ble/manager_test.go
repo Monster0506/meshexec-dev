@@ -66,7 +66,7 @@ func (m *mockTransport) CreateGATTService() (*core.GATTService, error) {
 
 func TestManagerStartDiscoveryAndUpdates(t *testing.T) {
 	mt := newMockTransport()
-    logger := logging.NewLogger("none") // Silence logs during tests
+	logger := logging.NewLogger("none") // Silence logs during tests
 	mgr := NewManager(mt, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -102,7 +102,7 @@ func TestManagerStartDiscoveryAndUpdates(t *testing.T) {
 
 func TestManagerConnectUpdatesPeer(t *testing.T) {
 	mt := newMockTransport()
-    logger := logging.NewLogger("none") // Silence logs during tests
+	logger := logging.NewLogger("none") // Silence logs during tests
 	mgr := NewManager(mt, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())

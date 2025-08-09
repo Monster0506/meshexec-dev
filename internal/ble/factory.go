@@ -65,8 +65,8 @@ func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETra
 				logger.Warn("Sidecar transport failed; continuing to native backends", map[string]interface{}{"error": err.Error()})
 			}
 		}
-        // Prefer WinRT transport when available (Windows + build tag winrt)
-        if t, ok, err := tryNewWinRT(cfg, logger); ok {
+		// Prefer WinRT transport when available (Windows + build tag winrt)
+		if t, ok, err := tryNewWinRT(cfg, logger); ok {
 			if err == nil {
 				return t, nil
 			}
@@ -106,8 +106,8 @@ func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETra
 				logger.Warn("Sidecar transport unavailable; trying WinRT/native", map[string]interface{}{"error": err.Error()})
 			}
 		}
-        // Prefer WinRT when available
-        if t, ok, err := tryNewWinRT(cfg, logger); ok {
+		// Prefer WinRT when available
+		if t, ok, err := tryNewWinRT(cfg, logger); ok {
 			if err == nil {
 				logger.Info("Using WinRT BLE transport", map[string]interface{}{"platform": getPlatform()})
 				return t, nil

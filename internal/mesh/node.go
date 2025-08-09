@@ -29,7 +29,7 @@ type Node struct {
 
 // NewNode constructs a MeshNode from a BLE transport and network config.
 func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
-    logger := logging.NewLogger("info") // Default logger for mesh node
+	logger := logging.NewLogger("info") // Default logger for mesh node
 	return &Node{
 		transport: transport,
 		manager:   ble.NewManager(transport, logger),
@@ -41,7 +41,7 @@ func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.Pe
 
 // NewNodeFromConfig builds a native/sim transport using the BLE factory and returns a node.
 func NewNodeFromConfig(cfg *core.Config) (*Node, error) {
-    logger := logging.NewLogger("info") // Create logger for the factory
+	logger := logging.NewLogger("info") // Create logger for the factory
 	t, err := ble.NewWithLogger(&cfg.Network, logger)
 	if err != nil {
 		return nil, err
@@ -68,19 +68,19 @@ func (n *Node) Start(ctx context.Context) error {
 	n.started = true
 	n.startedMu.Unlock()
 
-    // Try to create GATT service; if unsupported on this platform/transport, continue without it
-    if _, err := n.transport.CreateGATTService(); err != nil {
-        // proceed without GATT service (e.g., Windows central-only path)
-    }
+	// Try to create GATT service; if unsupported on this platform/transport, continue without it
+	if _, err := n.transport.CreateGATTService(); err != nil {
+		// proceed without GATT service (e.g., Windows central-only path)
+	}
 
 	// Start advertising in a cancellable context
 	advCtx, advCancel := context.WithCancel(context.Background())
 	n.advCancel = advCancel
 	// Use a minimal serviceData marker; future: encode discovery metadata
-    if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
-        // proceed with scanning only when advertising is unavailable
-        advCancel()
-    }
+	if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
+		// proceed with scanning only when advertising is unavailable
+		advCancel()
+	}
 
 	// Start discovery
 	if err := n.manager.StartDiscovery(ctx); err != nil {

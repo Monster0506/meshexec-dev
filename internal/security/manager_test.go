@@ -13,13 +13,13 @@ import (
 )
 
 func TestNewSecurityManager(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 	assert.NotNil(t, sm)
 	assert.False(t, sm.HasKeys())
 }
 
 func TestGenerateKeyPair(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	err := sm.GenerateKeyPair()
 	require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestSaveAndLoadKeys(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "test_keys")
 
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -66,7 +66,7 @@ func TestSaveAndLoadKeys(t *testing.T) {
 	}
 
 	// Create new security manager and load keys
-    sm2 := NewSecurityManagerWithLevel("none")
+	sm2 := NewSecurityManagerWithLevel("none")
 	err = sm2.LoadKeys(keyPath)
 	require.NoError(t, err)
 
@@ -78,7 +78,7 @@ func TestLoadKeys_GenerateNewIfNotExist(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "nonexistent_keys")
 
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Load keys (should generate new ones)
 	err := sm.LoadKeys(keyPath)
@@ -96,7 +96,7 @@ func TestLoadKeys_GenerateNewIfNotExist(t *testing.T) {
 }
 
 func TestSignAndVerifyMessage(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -139,7 +139,7 @@ func TestSignAndVerifyMessage(t *testing.T) {
 }
 
 func TestSignAndVerifyMeshMessage(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -179,7 +179,7 @@ func TestSignAndVerifyMeshMessage(t *testing.T) {
 }
 
 func TestCreateSignedCommandMessage(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -214,7 +214,7 @@ func TestCreateSignedCommandMessage(t *testing.T) {
 }
 
 func TestCreateSignedResultMessage(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -252,7 +252,7 @@ func TestCreateSignedResultMessage(t *testing.T) {
 }
 
 func TestSignMessage_NoPrivateKey(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	testMsg := map[string]string{"test": "data"}
 
@@ -262,7 +262,7 @@ func TestSignMessage_NoPrivateKey(t *testing.T) {
 }
 
 func TestVerifyMessage_NoPublicKey(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	testMsg := map[string]string{"test": "data"}
 
@@ -272,7 +272,7 @@ func TestVerifyMessage_NoPublicKey(t *testing.T) {
 }
 
 func TestSaveKeys_NoKeys(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	err := sm.SaveKeys("/tmp/test_keys")
 	assert.Error(t, err)
@@ -294,7 +294,7 @@ func TestLoadKeys_InvalidKeyData(t *testing.T) {
 	err = os.WriteFile(publicKeyPath, []byte("invalid_base64"), 0644)
 	require.NoError(t, err)
 
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	err = sm.LoadKeys(keyPath)
 	assert.Error(t, err)
@@ -317,7 +317,7 @@ func TestLoadKeys_InvalidKeySize(t *testing.T) {
 	err = os.WriteFile(publicKeyPath, []byte(shortKey), 0644)
 	require.NoError(t, err)
 
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	err = sm.LoadKeys(keyPath)
 	assert.Error(t, err)
@@ -325,7 +325,7 @@ func TestLoadKeys_InvalidKeySize(t *testing.T) {
 }
 
 func TestVerifyMessage_InvalidSignature(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -340,7 +340,7 @@ func TestVerifyMessage_InvalidSignature(t *testing.T) {
 }
 
 func TestMessageIDGeneration(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate multiple IDs and ensure they're unique
 	id1 := sm.generateMessageID()
@@ -360,7 +360,7 @@ func TestMessageIDGeneration(t *testing.T) {
 }
 
 func TestSignMessage_ComplexData(t *testing.T) {
-    sm := NewSecurityManagerWithLevel("none")
+	sm := NewSecurityManagerWithLevel("none")
 
 	// Generate keys
 	err := sm.GenerateKeyPair()
@@ -402,8 +402,8 @@ func TestSignMessage_ComplexData(t *testing.T) {
 
 func TestCrossKeyVerification(t *testing.T) {
 	// Create two security managers with different keys
-    sm1 := NewSecurityManagerWithLevel("none")
-    sm2 := NewSecurityManagerWithLevel("none")
+	sm1 := NewSecurityManagerWithLevel("none")
+	sm2 := NewSecurityManagerWithLevel("none")
 
 	// Generate keys for both
 	err := sm1.GenerateKeyPair()

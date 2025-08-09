@@ -35,10 +35,10 @@ func NewManager() *Manager {
 // NewManagerWithLevel creates a new configuration manager with a configurable log level.
 // Pass level "none" in tests to silence logs.
 func NewManagerWithLevel(level string) *Manager {
-    return &Manager{
-        viper:  viper.New(),
-        logger: logging.NewLogger(level),
-    }
+	return &Manager{
+		viper:  viper.New(),
+		logger: logging.NewLogger(level),
+	}
 }
 
 // Load loads configuration from file or returns default configuration
