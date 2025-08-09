@@ -1,5 +1,7 @@
 # MeshExec
 
+[![Go CI](https://github.com/Monster0506/meshexec-dev/actions/workflows/go.yml/badge.svg)](https://github.com/Monster0506/meshexec-dev/actions/workflows/go.yml)
+
 **MeshExec** is a Bluetooth-based mesh shell command runner for secure, distributed execution across nearby devices. It enables lightweight, ephemeral command sharing and execution even without Wi-Fi or internet -- ideal for ad-hoc collaboration, local automation, or field-based computing.
 
 > 🔧 Works offline. ⚡ Runs fast. 🐝 Meshes dynamically.
@@ -190,4 +192,5 @@ We welcome your PRs, issues, and ideas! Contributions can include:
 ## 📜 License
 
 MIT License. See [LICENSE](./LICENSE).
+
 
