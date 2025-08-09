@@ -51,6 +51,7 @@ go build -o meshexec.exe ./cmd/meshexec
 
 > ⚠️ On Windows, you must enable Developer Mode and run in an elevated terminal.
 
+> You must also run the commands in [buildingwindows.txt](sidecar/WinBLE/buildingwindows.txt)
 ---
 
 ### 💻 2. Run Your First Command
