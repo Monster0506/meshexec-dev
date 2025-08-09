@@ -185,15 +185,4 @@ func newSim(cfg *core.NetworkConfig, logger *logging.Logger) core.BLETransport {
 	return t
 }
 
-// For backward compatibility - the old function signature without logger
-func newSimCompat(cfg *core.NetworkConfig) core.BLETransport {
-	return newSim(cfg, nil)
-}
-
-// Fallback for platforms without native BLE support
-func createNativeFallback(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, error) {
-	if logger != nil {
-		logger.Info("Native BLE not available on this platform, using simulation", nil)
-	}
-	return newSim(cfg, logger), nil
-}
+// (removed) createNativeFallback was unused; simulation fallback is handled directly via newSim

@@ -24,10 +24,9 @@ import (
 type SidecarTransport struct {
 	logger *logging.Logger
 
-	mu      sync.Mutex
-	conn    net.Conn
-	addr    string
-	started bool
+	mu   sync.Mutex
+	conn net.Conn
+	addr string
 
 	// fallback scanner for discovery
 	scanner core.BLETransport

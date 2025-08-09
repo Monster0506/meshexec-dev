@@ -2,8 +2,9 @@ package ble
 
 import (
 	"context"
+	crand "crypto/rand"
 	"errors"
-	"math/rand"
+	mrand "math/rand"
 	"net"
 	"os"
 	"strings"
@@ -125,7 +126,7 @@ func (t *Transport) Advertise(ctx context.Context, serviceData []byte) error {
 				return
 			case <-ticker.C:
 				// Simulate variable RSSI
-				rssi := -30 - rand.Intn(50)
+				rssi := -30 - mrand.Intn(50)
 				t.broadcastAdvertisement(addr, name, serviceData, rssi)
 				broadcastCount++
 
@@ -292,8 +293,13 @@ func hostnameOrDefault(def string) string {
 func randomMAC() string {
 	// Use a locally administered MAC prefix (x2)
 	b := make([]byte, 6)
-	rand.Seed(time.Now().UnixNano())
-	rand.Read(b)
+	if _, err := crand.Read(b); err != nil {
+		// fallback: use timestamp-derived values
+		n := time.Now().UnixNano()
+		for i := 0; i < len(b); i++ {
+			b[i] = byte(n >> (uint(i) * 8))
+		}
+	}
 	b[0] = (b[0] | 0x02) & 0xfe
 	hw := net.HardwareAddr(b)
 	return hw.String()
@@ -316,6 +322,4 @@ func tryNewWinRT(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETrans
 
 // tryNewSidecar is provided by a Windows-specific file when built with sidecar support.
 // The default here returns (nil, false, nil) meaning "not available".
-func tryNewSidecar(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, bool, error) {
-	return nil, false, nil
-}
+// tryNewSidecar stub removed; sidecar initialization lives in transport_sidecar_windows.go

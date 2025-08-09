@@ -11,7 +11,7 @@ import (
 func TestModel_InitAndPeerUpdate(t *testing.T) {
 	m := newModel(logging.NewLogger("none"))
 	if m.peerList.FilterState() == 0 { // ensure list created
-		// ok
+		t.Log("peer list initialized")
 	}
 	peers := []internal.PeerInfo{{Name: "alpha"}, {Name: "bravo"}}
 	m2, _ := m.Update(peersUpdateMsg{Peers: peers})

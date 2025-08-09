@@ -107,7 +107,8 @@ func (e *Evaluator) Tokenize(expression string) ([]string, error) {
 	inQuotes := false
 	escapeNext := false
 
-	for i, char := range expression {
+	for i := 0; i < len(expression); i++ {
+		char := rune(expression[i])
 		if escapeNext {
 			current.WriteRune(char)
 			escapeNext = false
@@ -136,7 +137,7 @@ func (e *Evaluator) Tokenize(expression string) ([]string, error) {
 				current.Reset()
 			}
 			tokens = append(tokens, "&&")
-			i++ // Skip next character
+			i++ // advance past the second '&'
 			continue
 		}
 
@@ -146,7 +147,7 @@ func (e *Evaluator) Tokenize(expression string) ([]string, error) {
 				current.Reset()
 			}
 			tokens = append(tokens, "||")
-			i++ // Skip next character
+			i++ // advance past the second '|'
 			continue
 		}
 
@@ -274,9 +275,10 @@ func (e *Evaluator) parseTokens(tokens []string) (*internal.TargetAST, error) {
 	// Check for unmatched closing parenthesis at the top level
 	parenCount := 0
 	for _, token := range tokens {
-		if token == "(" {
+		switch token {
+		case "(":
 			parenCount++
-		} else if token == ")" {
+		case ")":
 			parenCount--
 			if parenCount < 0 {
 				return nil, fmt.Errorf("unmatched closing parenthesis")
@@ -375,9 +377,10 @@ func (e *Evaluator) parseCondition(condition string) (*internal.TargetAST, error
 		return nil, fmt.Errorf("invalid condition format: %s (expected attribute=value)", condition)
 	}
 
-	// Remove quotes from value if present
+	// Remove quotes from value if present, and rebuild condition
 	if len(value) >= 2 && (value[0] == '"' && value[len(value)-1] == '"') {
 		value = value[1 : len(value)-1]
+		condition = attribute + "=" + value
 	}
 
 	return &internal.TargetAST{

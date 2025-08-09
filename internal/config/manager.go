@@ -207,7 +207,7 @@ func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 	// Watch config directory
 	configDir := filepath.Dir(m.getConfigPath())
 	if err := watcher.Add(configDir); err != nil {
-		watcher.Close()
+		_ = watcher.Close()
 		m.logger.Error("Failed to watch config directory", err, map[string]interface{}{
 			"directory": configDir,
 		})
@@ -219,7 +219,7 @@ func (m *Manager) Watch(ctx context.Context) (<-chan *internal.Config, error) {
 	})
 
 	go func() {
-		defer watcher.Close()
+		defer func() { _ = watcher.Close() }()
 		defer close(configChan)
 		defer m.logger.Debug("Configuration file watcher stopped", nil)
 

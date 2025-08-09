@@ -71,6 +71,7 @@ func (n *Node) Start(ctx context.Context) error {
 	// Try to create GATT service; if unsupported on this platform/transport, continue without it
 	if _, err := n.transport.CreateGATTService(); err != nil {
 		// proceed without GATT service (e.g., Windows central-only path)
+		_ = err
 	}
 
 	// Start advertising in a cancellable context
@@ -84,7 +85,7 @@ func (n *Node) Start(ctx context.Context) error {
 
 	// Start discovery
 	if err := n.manager.StartDiscovery(ctx); err != nil {
-		n.Stop()
+		_ = n.Stop()
 		return err
 	}
 

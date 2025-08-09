@@ -350,7 +350,10 @@ func (sm *SecurityManager) generateMessageID() string {
 	// Use timestamp + random bytes for uniqueness
 	timestamp := time.Now().UnixNano()
 	randomBytes := make([]byte, 8)
-	rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to timestamp-only ID if entropy unavailable
+		return fmt.Sprintf("%d", timestamp)
+	}
 
 	// Combine timestamp and random bytes
 	id := fmt.Sprintf("%d-%x", timestamp, randomBytes)

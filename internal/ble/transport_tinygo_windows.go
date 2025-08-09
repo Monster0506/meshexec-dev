@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	bt "tinygo.org/x/bluetooth"
@@ -22,12 +21,8 @@ type tgTransport struct {
 	adapter *bt.Adapter
 	logger  *logging.Logger
 
-	mu              sync.RWMutex
-	localAddress    string
-	localName       string
-	advertisedData  []byte
-	advertiseActive bool
-	advertiseCancel context.CancelFunc
+	localAddress string
+	localName    string
 
 	gattServices map[string]*core.GATTService
 	// Note: Windows peripheral/server not available via tinygo.org/x/bluetooth in this toolchain
@@ -102,10 +97,10 @@ func (t *tgTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, err
 				Timestamp:   time.Now(),
 			}
 			// TODO: when TinyGo exposes service data on Windows, populate here.
+			// Simple non-blocking send without select (single case)
 			select {
 			case out <- adv:
 			default:
-				// drop if receiver slow
 			}
 		})
 
@@ -141,13 +136,11 @@ func (t *tgTransport) Connect(ctx context.Context, addr string) (*core.Connectio
 
 	// Best-effort timeout context to ensure we honor ctx cancellation
 	go func() {
-		select {
-		case <-ctx.Done():
-			t.logger.Debug("TinyGo BLE connection cancelled, disconnecting", map[string]interface{}{
-				"address": addr,
-			})
-			_ = dev.Disconnect()
-		}
+		<-ctx.Done()
+		t.logger.Debug("TinyGo BLE connection cancelled, disconnecting", map[string]interface{}{
+			"address": addr,
+		})
+		_ = dev.Disconnect()
 	}()
 
 	t.logger.Info("Windows TinyGo BLE connection established", map[string]interface{}{
@@ -187,7 +180,7 @@ func isValidMACAddress(addr string) bool {
 			return false
 		}
 		for _, char := range part {
-			if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+			if (char < '0' || char > '9') && (char < 'a' || char > 'f') && (char < 'A' || char > 'F') {
 				return false
 			}
 		}

@@ -25,7 +25,9 @@ Features:
 - TUI and CLI interfaces`,
 	Version: "0.1.0",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		if err := cmd.Help(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error showing help: %v\n", err)
+		}
 	},
 }
 

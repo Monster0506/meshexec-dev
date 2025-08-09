@@ -172,13 +172,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.NextTab):
 			m.tab = (m.tab + 1) % 3
 			// manage focus
-			if m.tab == tabCommands {
+			switch m.tab {
+			case tabCommands:
 				m.input.Focus()
 				m.resultFilter.Blur()
-			} else if m.tab == tabResults {
+			case tabResults:
 				m.resultFilter.Focus()
 				m.input.Blur()
-			} else {
+			default:
 				m.input.Blur()
 				m.resultFilter.Blur()
 			}
@@ -190,13 +191,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tab--
 			}
 			// manage focus
-			if m.tab == tabCommands {
+			switch m.tab {
+			case tabCommands:
 				m.input.Focus()
 				m.resultFilter.Blur()
-			} else if m.tab == tabResults {
+			case tabResults:
 				m.resultFilter.Focus()
 				m.input.Blur()
-			} else {
+			default:
 				m.input.Blur()
 				m.resultFilter.Blur()
 			}
@@ -278,9 +280,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 var (
 	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0FF")).Bold(true)
-	tabActive  = lipgloss.NewStyle().Foreground(lipgloss.Color("#00E1FF")).Bold(true)
-	tabNormal  = lipgloss.NewStyle().Foreground(lipgloss.Color("#666"))
-	boxStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2).BorderForeground(lipgloss.Color("#4D4DFF"))
 )
 
 func (m model) View() string {
