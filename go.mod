@@ -2,7 +2,7 @@ module github.com/monster0506/meshexec
 
 go 1.23.0
 
-toolchain go1.26
+toolchain go1.23.11
 
 require (
 	github.com/BurntSushi/toml v1.5.0
