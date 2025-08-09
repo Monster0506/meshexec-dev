@@ -3,7 +3,6 @@
 
 repos:
   - repo: local
-    fail_fast: false
 
     hooks:
       - id: go-fmt
@@ -11,10 +10,6 @@ repos:
         entry: gofmt -w .
         language: system
         files: '\.go$'
-        exit_zero: true
-        
-        
-
 
       - id: go-imports
         name: goimports

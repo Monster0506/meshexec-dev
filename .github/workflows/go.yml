@@ -78,68 +78,63 @@ jobs:
   # Job for building, testing with race detector, and coverage reporting.
   # This job uses a matrix strategy for cross-OS and cross-Go version testing.
   build-test-coverage:
-    runs-on: ${{ matrix.os }}
-    needs: format-lint # Ensure formatting and linting pass first
-    strategy:
-      matrix:
-        # Optimize matrix: run all Go versions on Ubuntu, but only the latest
-        # stable Go version on macOS and Windows to save CI minutes.
-        include:
-          - os: ubuntu-latest
-            go-version: '1.24.x'
-          - os: ubuntu-latest
-            go-version: '1.23.x'
-          - os: ubuntu-latest
-            go-version: '1.22.x'
-          - os: macos-latest
-            go-version: '1.24.x'
-          - os: windows-latest
-            go-version: '1.24.x'
-      fail-fast: false # Do not cancel other matrix jobs on failure
+      runs-on: ${{ matrix.os }}
+      needs: format-lint
+      strategy:
+        matrix:
+          include:
+            - os: ubuntu-latest
+              go-version: '1.24.x'
+            - os: ubuntu-latest
+              go-version: '1.23.x'
+            - os: ubuntu-latest
+              go-version: '1.22.x'
+            - os: macos-latest
+              go-version: '1.24.x'
+            - os: windows-latest
+              go-version: '1.24.x'
+        fail-fast: false
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go-version }}
+        - name: Set up Go ${{ matrix.go-version }}
+          uses: actions/setup-go@v4
+          with:
+            go-version: ${{ matrix.go-version }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+        - name: Cache Go modules
+          uses: actions/cache@v4
+          with:
+            path: |
+              ~/go/pkg/mod
+              ~/.cache/go-build
+            key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+            restore-keys: |
+              ${{ runner.os }}-go-
 
-      - name: Build project
-        run: go build -v ./...
+        - name: Build project
+          run: go build -v ./...
 
-      - name: Run tests with coverage and race detector
-        run: go test -v -race -coverprofile=coverage.out ./...
+        - name: Run tests with coverage and race detector
+          run: go test -v -race ./... -coverprofile=coverage.out
 
-      - name: Display coverage in PR summary
-        # Only add to PR summary for pull request events
-        if: github.event_name == 'pull_request'
-        run: |
-          # Generate a textual coverage report
-          go tool cover -func=coverage.out -o coverage.txt
-          # Append to GitHub step summary for direct visibility in the PR
-          echo "## Go Test Coverage" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat coverage.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+        - name: Display coverage in PR summary
+          if: github.event_name == 'pull_request'
+          run: |
+            go tool cover -func=coverage.out -o coverage.txt
+            echo "## Go Test Coverage" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat coverage.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v4
+          with:
+            files: coverage.out
+            fail_ci_if_error: true
+            token: ${{ secrets.CODECOV_TOKEN }}
 
   # Job for security and dependency checks.
   security-checks:
