@@ -24,7 +24,12 @@ var daemonCmd = &cobra.Command{
 		}
 
 		// Load configuration (if present) so we honor user/device settings early
-		manager := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		manager := config.NewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			manager.SetConfigPath(cfgPath)

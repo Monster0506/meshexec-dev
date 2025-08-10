@@ -17,7 +17,12 @@ var joinCmd = &cobra.Command{
 	Use:   "join",
 	Short: "Join the mesh network",
 	Run: func(cmd *cobra.Command, args []string) {
-		cfgMgr := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		cfgMgr := config.NewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
@@ -75,7 +80,12 @@ var listCmd = &cobra.Command{
 			timeout = 5000 * time.Millisecond
 		}
 
-		cfgMgr := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		cfgMgr := config.NewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
@@ -143,7 +153,12 @@ var statusCmd = &cobra.Command{
 		}
 
 		// Load configuration
-		cfgMgr := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		cfgMgr := config.NewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)

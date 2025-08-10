@@ -18,7 +18,12 @@ var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration",
 	Run: func(cmd *cobra.Command, args []string) {
-		manager := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		manager := config.NewManagerWithLevel(logLevel)
 
 		// Get config path from global flags
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -47,7 +52,12 @@ var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize default configuration file",
 	Run: func(cmd *cobra.Command, args []string) {
-		manager := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		manager := config.NewManagerWithLevel(logLevel)
 
 		// Get config path from global flags
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -78,7 +88,12 @@ var configValidateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate configuration file",
 	Run: func(cmd *cobra.Command, args []string) {
-		manager := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		manager := config.NewManagerWithLevel(logLevel)
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if configPath != "" {
 			manager.SetConfigPath(configPath)

@@ -30,7 +30,12 @@ var runCmd = &cobra.Command{
 	Example: "meshexec run -t \"os=linux && role=worker\" -- echo hello\nmeshexec run --target all -- uptime\nmeshexec run --dry-run -t 'arch=arm' -- cat /proc/cpuinfo",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load configuration
-		cfgMgr := config.NewManager()
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		cfgMgr := config.NewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)

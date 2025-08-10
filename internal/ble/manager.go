@@ -47,14 +47,10 @@ func NewManager(transport core.BLETransport, logger *logging.Logger) *Manager {
 
 // getTransportType returns a string representation of the transport type
 func getTransportType(transport core.BLETransport) string {
-	// Prefer precise identification via type switches on known implementations
+	// Prefer precise identification for the in-package simulated transport
 	switch transport.(type) {
 	case *Transport:
 		return "simulated"
-	case *SidecarTransport:
-		return "sidecar"
-	case *tgTransport:
-		return "tinygo"
 	}
 
 	// Fallback: use type name heuristics
