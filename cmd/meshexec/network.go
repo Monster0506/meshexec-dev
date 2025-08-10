@@ -126,21 +126,105 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show network status",
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_ = ctx
-		if logger != nil {
-			logger.Info("Status command (stub)", map[string]interface{}{"json": statusJSON, "since": statusSince})
+		// Resolve timeout
+		timeout := time.Duration(statusTimeoutMs) * time.Millisecond
+		if timeout <= 0 {
+			timeout = 2 * time.Second
 		}
-		if statusJSON {
-			fmt.Println("{\"status\": \"not_implemented\"}")
-			return
-		}
+
+		// Optional since filter
+		var sinceCutoff time.Time
 		if statusSince != "" {
-			fmt.Printf("Status since %s: (not implemented)\n", statusSince)
+			if d, err := time.ParseDuration(statusSince); err == nil {
+				sinceCutoff = time.Now().Add(-d)
+			} else if logger != nil {
+				logger.Warn("Invalid --since duration; ignoring", map[string]interface{}{"since": statusSince, "error": err.Error()})
+			}
+		}
+
+		// Load configuration
+		cfgMgr := config.NewManager()
+		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
+		if cfgPath != "" {
+			cfgMgr.SetConfigPath(cfgPath)
+		}
+		cfg, err := cfgMgr.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Initialize BLE and manager
+		transport, err := ble.NewWithLogger(&cfg.Network, logger)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
+			os.Exit(1)
+		}
+		mgr := ble.NewManager(transport, logger)
+
+		// Perform a brief discovery scan
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if err := mgr.StartDiscovery(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "Discovery error: %v\n", err)
+			os.Exit(1)
+		}
+		<-ctx.Done()
+
+		// Collect peers and apply optional time filter
+		peers := mgr.ListPeers()
+		if !sinceCutoff.IsZero() {
+			filtered := make([]internal.PeerInfo, 0, len(peers))
+			for _, p := range peers {
+				if p.LastSeen.After(sinceCutoff) {
+					filtered = append(filtered, p)
+				}
+			}
+			peers = filtered
+		}
+
+		// Build status object
+		status := internal.NetworkStatus{
+			LocalNode: internal.PeerInfo{
+				Name: cfg.Device.Name,
+				Role: cfg.Device.Role,
+				OS:   cfg.Device.OS,
+				Arch: cfg.Device.Arch,
+			},
+			Peers:          peers,
+			Routes:         map[string][]string{},
+			Updated:        time.Now(),
+			TotalPeers:     len(peers),
+			ConnectedPeers: 0,
+		}
+		for _, p := range peers {
+			if p.Connected {
+				status.ConnectedPeers++
+			}
+		}
+
+		// Output
+		if statusJSON {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(status)
 			return
 		}
-		fmt.Println("Status: (not implemented)")
+
+		// Human-readable output
+		if !sinceCutoff.IsZero() {
+			fmt.Printf("Mesh status (since %s): %d peers (%d connected)\n", statusSince, status.TotalPeers, status.ConnectedPeers)
+		} else {
+			fmt.Printf("Mesh status: %d peers (%d connected)\n", status.TotalPeers, status.ConnectedPeers)
+		}
+		if len(status.Peers) == 0 {
+			fmt.Println("No peers discovered")
+			return
+		}
+		for _, p := range status.Peers {
+			age := time.Since(p.LastSeen).Truncate(time.Second)
+			fmt.Printf("- %s  %s  RSSI=%d  seen %s ago  connected=%v\n", p.Address, p.Name, p.SignalStrength, age, p.Connected)
+		}
 	},
 }
 
@@ -152,6 +236,7 @@ var (
 	listTimeoutMs         int
 	statusJSON            bool
 	statusSince           string
+	statusTimeoutMs       int
 )
 
 func init() {
@@ -169,6 +254,7 @@ func init() {
 	listCmd.Flags().IntVar(&listTimeoutMs, "timeout", 5000, "scan timeout in ms")
 
 	// status flags
-	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output status as JSON (stub)")
-	statusCmd.Flags().StringVar(&statusSince, "since", "", "filter results newer than duration, e.g. 10m (stub)")
+	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output status as JSON")
+	statusCmd.Flags().StringVar(&statusSince, "since", "", "filter peers seen within duration, e.g. 10m")
+	statusCmd.Flags().IntVar(&statusTimeoutMs, "timeout", 2000, "scan timeout in ms")
 }
