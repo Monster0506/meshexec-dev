@@ -53,11 +53,11 @@ jobs:
         shell: pwsh
         run: dotnet build "sidecar/WinBLE/WinBLE.csproj" -c Release --no-restore
 
-      - name: Test (if any)
+      - name: Test
         shell: pwsh
         run: dotnet test "sidecar/WinBLE/WinBLE.csproj" -c Release --no-build --verbosity normal || echo "No tests discovered"
 
-      - name: Publish self-contained single-file (win-x64)
+      - name: Publish self-contained single-file
         shell: pwsh
         run: |
           $publishDir = Join-Path $env:RUNNER_TEMP "winble_publish"
@@ -72,7 +72,7 @@ jobs:
           Copy-Item "$env:PUBLISH_DIR\*" $pkgDir -Recurse -Force
           echo "PKG_DIR=$pkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Locate Windows SDK tools (makeappx, signtool)
+      - name: Locate Windows SDK tools
         shell: pwsh
         run: |
           $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64\\makeappx.exe$" } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
@@ -89,7 +89,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "makeappx failed with exit code $LASTEXITCODE" }
           echo "PKG_OUT=$pkgOut" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Sign MSIX (fast, no cert store)
+      - name: Sign MSIX
         if: ${{ env.SIGNING_CERT_BASE64 != '' && env.SIGNTOOL != '' }}
         shell: pwsh
         run: |
@@ -97,7 +97,7 @@ jobs:
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String("${{ env.SIGNING_CERT_BASE64 }}"))
           & "$env:SIGNTOOL" sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$pfxPath" /p "${{ env.SIGNING_CERT_PASSWORD }}" "$env:PKG_OUT"
           if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE" }
-          & "$env:SIGNTOOL" verify /pa /v "$env:PKG_OUT"
+          & "$env:SIGNTOOL" verify /pa /v /all "$env:PKG_OUT"
 
       - name: Upload artifact - MSIX
         uses: actions/upload-artifact@v4
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WinBLE_Publish
-          path: ${{ env.PUBLISH_DIR }}
+          path: ${{ env:PUBLISH_DIR }}
 
   sidecar-security:
     name: Security Checks (WinBLE)
