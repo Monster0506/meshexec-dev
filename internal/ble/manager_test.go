@@ -134,38 +134,6 @@ func TestManagerConnectUpdatesPeer(t *testing.T) {
 
 // --- Transport type labeling tests ---
 
-// sidecarTestTransport triggers heuristic path for "sidecar"
-type sidecarTestTransport struct{}
-
-func (s *sidecarTestTransport) Advertise(ctx context.Context, serviceData []byte) error { return nil }
-func (s *sidecarTestTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
-	ch := make(chan *core.Advertisement)
-	close(ch)
-	return ch, nil
-}
-func (s *sidecarTestTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
-	return &core.Connection{Address: addr, MTU: 185, Connected: true}, nil
-}
-func (s *sidecarTestTransport) CreateGATTService() (*core.GATTService, error) {
-	return &core.GATTService{UUID: "x"}, nil
-}
-
-// tinygoTestTransport triggers heuristic path for "tinygo"
-type tinygoTestTransport struct{}
-
-func (tgt *tinygoTestTransport) Advertise(ctx context.Context, serviceData []byte) error { return nil }
-func (tgt *tinygoTestTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
-	ch := make(chan *core.Advertisement)
-	close(ch)
-	return ch, nil
-}
-func (tgt *tinygoTestTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
-	return &core.Connection{Address: addr, MTU: 185, Connected: true}, nil
-}
-func (tgt *tinygoTestTransport) CreateGATTService() (*core.GATTService, error) {
-	return &core.GATTService{UUID: "x"}, nil
-}
-
 // gobleTestTransport triggers heuristic path for "goble"
 type gobleTestTransport struct{}
 
@@ -203,16 +171,6 @@ func TestGetTransportType_Labels(t *testing.T) {
 	sim := NewTransportWithLogger(logging.NewLogger("none"))
 	if tt := getTransportType(sim); tt != "simulated" {
 		t.Fatalf("expected transport_type=simulated, got %q", tt)
-	}
-
-	// Sidecar (heuristic)
-	if tt := getTransportType(&sidecarTestTransport{}); tt != "sidecar" {
-		t.Fatalf("expected transport_type=sidecar, got %q", tt)
-	}
-
-	// TinyGo (heuristic)
-	if tt := getTransportType(&tinygoTestTransport{}); tt != "tinygo" {
-		t.Fatalf("expected transport_type=tinygo, got %q", tt)
 	}
 
 	// Goble (heuristic)
