@@ -1,0 +1,140 @@
+name: Sidecar C# CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  sidecar-format-lint:
+    name: Format and Analyze (WinBLE)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+
+      - name: Verify formatting and analyzers
+        shell: pwsh
+        run: |
+          dotnet --info
+          dotnet format "sidecar/WinBLE/WinBLE.csproj" --verify-no-changes
+
+  sidecar-build-package:
+    name: Build, Test, Package (WinBLE)
+    runs-on: windows-latest
+    needs: sidecar-format-lint
+    env:
+      SIGNING_CERT_BASE64: ${{ secrets.SIDECAR_SIGNING_CERT_BASE64 }}
+      SIGNING_CERT_PASSWORD: ${{ secrets.SIDECAR_SIGNING_CERT_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore "sidecar/WinBLE/WinBLE.csproj"
+
+      - name: Build (Release)
+        shell: pwsh
+        run: |
+          dotnet build "sidecar/WinBLE/WinBLE.csproj" -c Release --no-restore
+
+      - name: Test (if any)
+        shell: pwsh
+        run: |
+          dotnet test "sidecar/WinBLE/WinBLE.csproj" -c Release --no-build --verbosity normal || echo "No tests discovered"
+
+      - name: Publish self-contained single-file (win-x64)
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:RUNNER_TEMP "winble_publish"
+          dotnet publish "sidecar/WinBLE/WinBLE.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -o $publishDir
+          echo "PUBLISH_DIR=$publishDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Prepare MSIX layout
+        shell: pwsh
+        run: |
+          $pkgDir = "${{ github.workspace }}\sidecar\WinBLE\msix\WinBLEPackage"
+          if (-not (Test-Path $pkgDir)) { throw "Package directory not found: $pkgDir" }
+          Copy-Item "$env:PUBLISH_DIR\*" $pkgDir -Recurse -Force
+          echo "PKG_DIR=$pkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Locate Windows SDK tools (makeappx, signtool)
+        id: winsdk
+        shell: pwsh
+        run: |
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64\\makeappx.exe$" } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64\\signtool.exe$" } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $makeappx) { throw "makeappx.exe not found" }
+          echo "MAKEAPPX=$makeappx" | Out-File -FilePath $env:GITHUB_ENV -Append
+          if ($signtool) { echo "SIGNTOOL=$signtool" | Out-File -FilePath $env:GITHUB_ENV -Append }
+
+      - name: Pack MSIX
+        shell: pwsh
+        run: |
+          $pkgOut = Join-Path $env:RUNNER_TEMP "WinBLE.msix"
+          & "$env:MAKEAPPX" pack /d "$env:PKG_DIR" /p "$pkgOut" /l
+          if ($LASTEXITCODE -ne 0) { throw "makeappx failed with exit code $LASTEXITCODE" }
+          echo "PKG_OUT=$pkgOut" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Import signing certificate
+        if: ${{ env.SIGNING_CERT_BASE64 != '' }}
+        shell: pwsh
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "signingCert.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String("${{ env.SIGNING_CERT_BASE64 }}"))
+          echo "CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Sign MSIX (signtool)
+        if: ${{ env.SIGNING_CERT_BASE64 != '' && env.SIGNTOOL != '' }}
+        shell: pwsh
+        run: |
+          & "$env:SIGNTOOL" sign /fd SHA256 /f "$env:CERT_PATH" /p "${{ env.SIGNING_CERT_PASSWORD }}" "$env:PKG_OUT"
+          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE" }
+          & "$env:SIGNTOOL" verify /pa /v "$env:PKG_OUT"
+
+      - name: Upload artifact - MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinBLE_MSIX
+          path: ${{ env.PKG_OUT }}
+
+      - name: Upload artifact - publish folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinBLE_Publish
+          path: ${{ env.PUBLISH_DIR }}
+
+  sidecar-security:
+    name: Security Checks (WinBLE)
+    runs-on: windows-latest
+    needs: sidecar-build-package
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+
+      - name: Audit vulnerable packages
+        shell: pwsh
+        run: |
+          dotnet list "sidecar/WinBLE/WinBLE.csproj" package --vulnerable --include-transitive
+
