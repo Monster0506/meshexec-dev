@@ -5,17 +5,6 @@ repos:
   - repo: local
 
     hooks:
-      - id: go-fmt
-        name: gofmt
-        entry: gofmt -w .
-        language: system
-        files: '\.go$'
-
-      - id: go-imports
-        name: goimports
-        entry: goimports -w .
-        language: system
-        files: '\.go$'
 
       - id: go-lint
         name: golangci-lint

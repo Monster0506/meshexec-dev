@@ -47,21 +47,31 @@ func NewManager(transport core.BLETransport, logger *logging.Logger) *Manager {
 
 // getTransportType returns a string representation of the transport type
 func getTransportType(transport core.BLETransport) string {
-	// Check type by examining the type name to avoid import cycles
-	typeName := fmt.Sprintf("%T", transport)
-
-	// Check for simulated transport patterns
-	if strings.Contains(typeName, "*ble.Transport") || strings.Contains(typeName, "Transport") {
+	// Prefer precise identification via type switches on known implementations
+	switch transport.(type) {
+	case *Transport:
 		return "simulated"
+	case *SidecarTransport:
+		return "sidecar"
+	case *tgTransport:
+		return "tinygo"
 	}
 
-	// Check for native transport patterns
-	if strings.Contains(typeName, "native") {
-		return "native"
+	// Fallback: use type name heuristics
+	typeName := fmt.Sprintf("%T", transport)
+	lower := strings.ToLower(typeName)
+	switch {
+	case strings.Contains(lower, "sidecar"):
+		return "sidecar"
+	case strings.Contains(lower, "tinygo") || strings.Contains(lower, "tgtransport"):
+		return "tinygo"
+	case strings.Contains(lower, "goble") || strings.Contains(lower, "native"):
+		return "goble"
+	case strings.Contains(lower, "transport"):
+		return "simulated"
+	default:
+		return "unknown"
 	}
-
-	// Default fallback
-	return "unknown"
 }
 
 // StartDiscovery begins scanning for nearby devices and publishing updates.
