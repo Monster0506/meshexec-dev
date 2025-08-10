@@ -89,7 +89,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "makeappx failed with exit code $LASTEXITCODE" }
           echo "PKG_OUT=$pkgOut" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Import and trust signing certificate
+      - name: Import and trust signing certificate (Trusted Root)
         if: ${{ env.SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
         run: |
@@ -101,6 +101,7 @@ jobs:
           $cerPath = Join-Path $env:RUNNER_TEMP "signingCert.cer"
           Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
           Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\CurrentUser\TrustedPeople | Out-Null
+          Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
 
       - name: Sign MSIX (with timestamp)
         if: ${{ env.SIGNING_CERT_BASE64 != '' && env.SIGNTOOL != '' }}
