@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +42,7 @@ var daemonCmd = &cobra.Command{
 					"error": err,
 				})
 			}
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(internal.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})))
 		}
 
 		fmt.Println("Agent daemon is not implemented yet. See tasks in tasks.md (section 8).")

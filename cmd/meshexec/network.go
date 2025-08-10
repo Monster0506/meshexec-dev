@@ -13,6 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	bleNewWithLogger          = ble.NewWithLogger
+	configNewManagerWithLevel = config.NewManagerWithLevel
+)
+
 var joinCmd = &cobra.Command{
 	Use:   "join",
 	Short: "Join the mesh network",
@@ -22,7 +27,7 @@ var joinCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		cfgMgr := config.NewManagerWithLevel(logLevel)
+		cfgMgr := configNewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
@@ -34,9 +39,10 @@ var joinCmd = &cobra.Command{
 		}
 
 		// Initialize BLE
-		transport, err := ble.NewWithLogger(&cfg.Network, logger)
+		transport, err := bleNewWithLogger(&cfg.Network, logger)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		mgr := ble.NewManager(transport, logger)
@@ -54,7 +60,8 @@ var joinCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		if err := mgr.StartDiscovery(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "Discovery error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 
@@ -85,7 +92,7 @@ var listCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		cfgMgr := config.NewManagerWithLevel(logLevel)
+		cfgMgr := configNewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
@@ -96,9 +103,10 @@ var listCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		transport, err := ble.NewWithLogger(&cfg.Network, logger)
+		transport, err := bleNewWithLogger(&cfg.Network, logger)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		mgr := ble.NewManager(transport, logger)
@@ -106,7 +114,8 @@ var listCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		if err := mgr.StartDiscovery(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "Discovery error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		<-ctx.Done()
@@ -158,7 +167,7 @@ var statusCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		cfgMgr := config.NewManagerWithLevel(logLevel)
+		cfgMgr := configNewManagerWithLevel(logLevel)
 		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
@@ -170,9 +179,10 @@ var statusCmd = &cobra.Command{
 		}
 
 		// Initialize BLE and manager
-		transport, err := ble.NewWithLogger(&cfg.Network, logger)
+		transport, err := bleNewWithLogger(&cfg.Network, logger)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "BLE init error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		mgr := ble.NewManager(transport, logger)
@@ -181,7 +191,8 @@ var statusCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		if err := mgr.StartDiscovery(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "Discovery error: %v\n", err)
+			me := internal.MapNetworkError("scan", err)
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		<-ctx.Done()

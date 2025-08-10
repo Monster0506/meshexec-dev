@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -33,7 +34,8 @@ var configShowCmd = &cobra.Command{
 
 		cfg, err := manager.Load()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			me := internal.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 
@@ -67,7 +69,8 @@ var configInitCmd = &cobra.Command{
 
 		err := manager.CreateDefaultConfig()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating config: %v\n", err)
+			me := internal.NewConfigError("create_failed", "failed to create default configuration", map[string]interface{}{"error": err.Error()})
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 
@@ -99,7 +102,8 @@ var configValidateCmd = &cobra.Command{
 			manager.SetConfigPath(configPath)
 		}
 		if _, err := manager.Load(); err != nil {
-			fmt.Fprintf(os.Stderr, "Configuration invalid: %v\n", err)
+			me := internal.NewConfigError("invalid_config", "configuration invalid", map[string]interface{}{"error": err.Error()})
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 		fmt.Println("Configuration is valid.")

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
 	"github.com/monster0506/meshexec/internal/executor"
 	"github.com/monster0506/meshexec/internal/messages"
@@ -42,7 +43,8 @@ var runCmd = &cobra.Command{
 		}
 		cfg, err := cfgMgr.Load()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			me := internal.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})
+			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
 		}
 

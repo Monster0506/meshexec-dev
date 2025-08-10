@@ -95,23 +95,23 @@ func TestStatus_InvalidSince_IgnoredByParser(t *testing.T) {
 }
 
 func TestJoinFlags_ParsingOnly(t *testing.T) {
-    oldRun := joinCmd.Run
-    joinCmd.Run = func(cmd *cobra.Command, args []string) {}
-    defer func() { joinCmd.Run = oldRun }()
+	oldRun := joinCmd.Run
+	joinCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { joinCmd.Run = oldRun }()
 
-    execArgs(t, "join", "--foreground", "--scan-interval", "1500", "--advertise-interval", "2000")
-    if !joinForeground || joinScanInterval != 1500 || joinAdvertiseInterval != 2000 {
-        t.Fatalf("unexpected join flags: fg=%v scan=%d adv=%d", joinForeground, joinScanInterval, joinAdvertiseInterval)
-    }
+	execArgs(t, "join", "--foreground", "--scan-interval", "1500", "--advertise-interval", "2000")
+	if !joinForeground || joinScanInterval != 1500 || joinAdvertiseInterval != 2000 {
+		t.Fatalf("unexpected join flags: fg=%v scan=%d adv=%d", joinForeground, joinScanInterval, joinAdvertiseInterval)
+	}
 }
 
 func TestListFlags_ParsingOnly(t *testing.T) {
-    oldRun := listCmd.Run
-    listCmd.Run = func(cmd *cobra.Command, args []string) {}
-    defer func() { listCmd.Run = oldRun }()
+	oldRun := listCmd.Run
+	listCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { listCmd.Run = oldRun }()
 
-    execArgs(t, "list", "--json", "--timeout", "2500")
-    if !listJSON || listTimeoutMs != 2500 {
-        t.Fatalf("unexpected list flags: json=%v timeout=%d", listJSON, listTimeoutMs)
-    }
+	execArgs(t, "list", "--json", "--timeout", "2500")
+	if !listJSON || listTimeoutMs != 2500 {
+		t.Fatalf("unexpected list flags: json=%v timeout=%d", listJSON, listTimeoutMs)
+	}
 }
