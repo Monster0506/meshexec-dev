@@ -63,3 +63,33 @@ func TestTUIFlags_ViewParsing(t *testing.T) {
 		t.Fatalf("expected tui --view=results, got %q", tuiView)
 	}
 }
+
+func TestStatusFlags_ParsingOnly(t *testing.T) {
+	// Stub the command run to avoid performing BLE operations during tests
+	oldRun := statusCmd.Run
+	statusCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { statusCmd.Run = oldRun }()
+
+	execArgs(t, "status", "--json", "--since", "10m", "--timeout", "1")
+	if !statusJSON {
+		t.Fatalf("expected status --json to set statusJSON=true")
+	}
+	if statusSince != "10m" {
+		t.Fatalf("expected status --since=10m, got %q", statusSince)
+	}
+	if statusTimeoutMs != 1 {
+		t.Fatalf("expected status --timeout=1, got %d", statusTimeoutMs)
+	}
+}
+
+func TestStatus_InvalidSince_IgnoredByParser(t *testing.T) {
+	oldRun := statusCmd.Run
+	statusCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { statusCmd.Run = oldRun }()
+
+	execArgs(t, "status", "--since", "10 min")
+	// Cobra stores flag value as-is; runtime parsing decides validity
+	if statusSince != "10 min" {
+		t.Fatalf("expected status --since preserved as '10 min', got %q", statusSince)
+	}
+}
