@@ -1,4 +1,5 @@
 $project = "" # replace with your project path
+$password = "PassW@rd!"
 dotnet build $project/sidecar/WinBLE/WinBLE.csproj -c Release                     
 dotnet publish $project/sidecar/WinBLE/WinBLE.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 
@@ -7,12 +8,31 @@ $pkgDir = "$project/sidecar/WinBLE/msix/WinBLEPackage"
 $msix   = "$project/sidecar/WinBLE/msix/WinBLE.msix"
 
 
+# Create or reuse a code signing cert that matches AppxManifest Publisher (CN=MeshExecDev)
+$subject = "CN=MeshExecDev"
+$cert = Get-ChildItem Cert:\CurrentUser\My |
+  Where-Object { $_.Subject -eq $subject -and $_.HasPrivateKey } |
+  Select-Object -First 1
+if (-not $cert) {
+  $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation "Cert:\CurrentUser\My"
+}
+
+# Export PFX with your desired password
+$pfxPwd = ConvertTo-SecureString $password -AsPlainText -Force
+Export-PfxCertificate -Cert $cert -FilePath "$env:TEMP\MeshExecDev.pfx" -Password $pfxPwd -Force
+
+# (Optional) Trust the public cert locally so Add-AppxPackage succeeds
+Export-Certificate -Cert $cert -FilePath "$env:TEMP\MeshExecDev.cer" | Out-Null
+# Use LocalMachine\TrustedPeople if you have admin; otherwise CurrentUser\TrustedPeople
+Import-Certificate -FilePath "$env:TEMP\MeshExecDev.cer" -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
+
+
 $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
 & "$makeappx" pack /d "$pkgDir" /p "$msix" /l
 
 
 $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-& "$signtool" sign /fd SHA256 /f "$env:TEMP\MeshExecDev.pfx" /p "meshExecDevP@ss" "$msix"
+& "$signtool" sign /fd SHA256 /f "$env:TEMP\MeshExecDev.pfx" /p $password "$msix"
 & "$signtool" verify /pa /v "$msix"
 
 Get-AppxPackage Meshexec.WinBLE | Remove-AppxPackage
