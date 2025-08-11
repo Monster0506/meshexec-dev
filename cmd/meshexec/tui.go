@@ -57,6 +57,9 @@ var tuiCmd = &cobra.Command{
 		if err := mgr.StartDiscovery(ctx); err != nil {
 			return err
 		}
+		if logger != nil {
+			logger.Info("tui: discovery started", nil)
+		}
 
 		// Subscribe to peer updates and push snapshots into the UI
 		subCtx, subCancel := context.WithCancel(ctx)
