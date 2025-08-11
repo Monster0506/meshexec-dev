@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
-	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/ble"
+	"github.com/monster0506/meshexec/internal/config"
 	"github.com/monster0506/meshexec/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -19,47 +22,61 @@ var tuiCmd = &cobra.Command{
 		}
 		ui := tui.NewManager(logger)
 
-		// For now, seed with some demo data until real integrations are implemented
+		// Load configuration (silent unless verbose)
+		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+		if verbose {
+			logLevel = "debug"
+		}
+		cfgMgr := config.NewManagerWithLevel(logLevel)
+		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
+		if cfgPath != "" {
+			cfgMgr.SetConfigPath(cfgPath)
+		}
+		cfg, err := cfgMgr.Load()
+		if err != nil {
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		// Initialize BLE transport (no simulation unless explicitly allowed)
+		tr, err := ble.NewWithLogger(&cfg.Network, logger)
+		if err != nil {
+			return err
+		}
+		// Disallow simulated transport by default
+		if !tuiAllowSim {
+			if _, isSim := tr.(*ble.Transport); isSim {
+				return errors.New("no real BLE transport available (simulation disabled); ensure hardware/backend present or pass --allow-sim")
+			}
+		}
+
+		// Create BLE manager and start discovery
+		mgr := ble.NewManager(tr, logger)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		if err := mgr.StartDiscovery(ctx); err != nil {
+			return err
+		}
 
-		// Simulate periodic peer updates in the background
+		// Subscribe to peer updates and push snapshots into the UI
+		subCtx, subCancel := context.WithCancel(ctx)
+		defer subCancel()
+		updates := mgr.Subscribe(subCtx)
 		go func() {
-			peers := []internal.PeerInfo{
-				{ID: "1", Name: "alpha", Address: "A1:B2:C3:D4", Role: "leader", OS: "windows", Arch: "amd64", SignalStrength: -45, Connected: true, LastSeen: time.Now()},
-				{ID: "2", Name: "bravo", Address: "E5:F6:G7:H8", Role: "worker", OS: "linux", Arch: "arm64", SignalStrength: -60, Connected: true, LastSeen: time.Now()},
-				{ID: "3", Name: "charlie", Address: "I9:J0:K1:L2", Role: "worker", OS: "darwin", Arch: "arm64", SignalStrength: -72, Connected: false, LastSeen: time.Now().Add(-2 * time.Minute)},
-			}
-			ticker := time.NewTicker(3 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					ui.UpdatePeers(peers)
+			// Debounce bursts to reduce UI churn
+			var last time.Time
+			for range updates {
+				now := time.Now()
+				if now.Sub(last) < 200*time.Millisecond {
+					continue
 				}
+				last = now
+				peers := mgr.ListPeers()
+				ui.UpdatePeers(peers)
 			}
 		}()
 
-		// Simulate results arriving later
-		go func() {
-			time.Sleep(5 * time.Second)
-			res := &internal.ExecutionResults{
-				CommandID: "demo-1",
-				Command:   "echo hello",
-				Target:    "role=worker",
-				Results: []internal.ExecutionResult{
-					{ID: "r1", Device: "alpha", ExitCode: 0, Stdout: "hello", Duration: 1200, Status: "ok"},
-					{ID: "r2", Device: "bravo", ExitCode: 1, Stdout: "", Stderr: "permission denied", Duration: 900, Status: "failed"},
-				},
-				Summary:   internal.ResultSummary{TotalDevices: 2, Successful: 1, Failed: 1, Timeout: 0, AverageDuration: 1050},
-				Timestamp: time.Now(),
-			}
-			ui.UpdateResults(res)
-		}()
-
-		// Pass initial view into the TUI manager
+		// Start TUI
 		return ui.StartTUI(ctx, tui.WithInitialView(tuiView))
 	},
 }
@@ -67,6 +84,8 @@ var tuiCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(tuiCmd)
 	tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: peers|results|overview")
+	tuiCmd.Flags().BoolVar(&tuiAllowSim, "allow-sim", false, "allow simulated BLE transport if native is unavailable")
 }
 
 var tuiView string
+var tuiAllowSim bool
