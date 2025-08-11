@@ -13,18 +13,18 @@ import (
 )
 
 var (
-	runTarget   string
-	runDryRun   bool
-	runWorkDir  string
-	runTimeout  int
-	runSafeMode bool
-	runNoSign   bool
-	runEncrypt  bool
-	runFormat   string
-    runSync     bool
-    runAt       string
-    runEnv      []string
-    runStdinFile string
+	runTarget    string
+	runDryRun    bool
+	runWorkDir   string
+	runTimeout   int
+	runSafeMode  bool
+	runNoSign    bool
+	runEncrypt   bool
+	runFormat    string
+	runSync      bool
+	runAt        string
+	runEnv       []string
+	runStdinFile string
 )
 
 var runCmd = &cobra.Command{
@@ -50,6 +50,15 @@ var runCmd = &cobra.Command{
 			me := internal.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})
 			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
+		}
+
+		// Log invocation
+		if logger != nil {
+			logger.Info("run: starting command dispatch", map[string]interface{}{
+				"target": runTarget, "dry_run": runDryRun, "workdir": runWorkDir, "timeout_ms": runTimeout,
+				"safe_mode": runSafeMode, "no_sign": runNoSign, "encrypt": runEncrypt, "format": runFormat,
+				"sync": runSync, "at": runAt, "env_count": len(runEnv), "stdin_file": runStdinFile,
+			})
 		}
 
 		// Build the command and arguments
@@ -86,7 +95,7 @@ var runCmd = &cobra.Command{
 			})
 		}
 
-        // Create a message to represent what would be sent
+		// Create a message to represent what would be sent
 		mh := messages.NewMessageHandler()
 		msg := mh.CreateCommandMessage(command, cmdArgs, []string{runTarget}, cfg.Device.Name, runWorkDir, runTimeout)
 
@@ -105,22 +114,25 @@ var runCmd = &cobra.Command{
 			fmt.Printf("  Safe   : %t\n", runSafeMode)
 			fmt.Printf("  Sign   : %s\n", map[bool]string{true: "disabled", false: "enabled"}[runNoSign])
 			fmt.Printf("  Encrypt: %t\n", runEncrypt)
-            if runSync {
-                fmt.Printf("  Sync   : %t\n", runSync)
-            }
-            if runAt != "" {
-                fmt.Printf("  At     : %s\n", runAt)
-            }
-            if len(runEnv) > 0 {
-                fmt.Printf("  Env    : %s\n", strings.Join(runEnv, ", "))
-            }
-            if runStdinFile != "" {
-                fmt.Printf("  Stdin  : %s\n", runStdinFile)
-            }
+			if runSync {
+				fmt.Printf("  Sync   : %t\n", runSync)
+			}
+			if runAt != "" {
+				fmt.Printf("  At     : %s\n", runAt)
+			}
+			if len(runEnv) > 0 {
+				fmt.Printf("  Env    : %s\n", strings.Join(runEnv, ", "))
+			}
+			if runStdinFile != "" {
+				fmt.Printf("  Stdin  : %s\n", runStdinFile)
+			}
 			if runFormat != "" {
 				fmt.Printf("  Format : %s\n", runFormat)
 			}
 			fmt.Printf("  Msg ID : %s\n", msg.ID)
+			if logger != nil {
+				logger.Info("run: dry-run complete", map[string]interface{}{"msg_id": msg.ID})
+			}
 			return
 		}
 
@@ -150,10 +162,10 @@ func init() {
 	runCmd.Flags().BoolVar(&runNoSign, "no-sign", false, "do not sign messages (stub)")
 	runCmd.Flags().BoolVar(&runEncrypt, "encrypt", false, "encrypt command payloads (stub)")
 	runCmd.Flags().StringVar(&runFormat, "format", "", "output format for results: text|json (stub)")
-    runCmd.Flags().BoolVar(&runSync, "sync", false, "ensure synchronized execution start across targets (stub)")
-    runCmd.Flags().StringVar(&runAt, "at", "", "schedule execution at a specific time (e.g., '03:00' or '+5m') (stub)")
-    runCmd.Flags().StringArrayVar(&runEnv, "env", nil, "environment variables in KEY=VAL form (repeatable) (stub)")
-    runCmd.Flags().StringVar(&runStdinFile, "stdin-file", "", "file path to send as stdin to the command (stub)")
+	runCmd.Flags().BoolVar(&runSync, "sync", false, "ensure synchronized execution start across targets (stub)")
+	runCmd.Flags().StringVar(&runAt, "at", "", "schedule execution at a specific time (e.g., '03:00' or '+5m') (stub)")
+	runCmd.Flags().StringArrayVar(&runEnv, "env", nil, "environment variables in KEY=VAL form (repeatable) (stub)")
+	runCmd.Flags().StringVar(&runStdinFile, "stdin-file", "", "file path to send as stdin to the command (stub)")
 
 	rootCmd.AddCommand(runCmd)
 }
