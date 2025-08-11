@@ -549,3 +549,118 @@ func TestGenerateMessageID(t *testing.T) {
 	assert.Len(t, id1, 36) // UUID v4 length
 	assert.Len(t, id2, 36)
 }
+
+// Consolidated from zero-hit coverage tests
+func TestMessageCreationAndSerialization_Basics(t *testing.T) {
+	h := NewMessageHandler()
+
+	cmd := h.CreateCommandMessage("echo", []string{"hello"}, []string{"all"}, "sender1", ".", 1000)
+	if cmd == nil || cmd.ID == "" || cmd.Type != internal.MessageTypeCommand {
+		t.Fatalf("unexpected command message: %+v", cmd)
+	}
+
+	res := h.CreateResultMessage(cmd.ID, internal.ExecutionResult{ID: "r1", Device: "d1"}, "sender1")
+	if res == nil || res.ID == "" || res.Type != internal.MessageTypeResult {
+		t.Fatalf("unexpected result message: %+v", res)
+	}
+
+	ping := h.CreatePingMessage("sender1")
+	if ping == nil || ping.Type != internal.MessageTypePing {
+		t.Fatalf("unexpected ping: %+v", ping)
+	}
+
+	pong := h.CreatePongMessage(ping.ID, "sender1")
+	if pong == nil || pong.Type != internal.MessageTypePong {
+		t.Fatalf("unexpected pong: %+v", pong)
+	}
+
+	data, err := h.SerializeMessage(cmd)
+	if err != nil || len(data) == 0 {
+		t.Fatalf("SerializeMessage failed: %v", err)
+	}
+
+	var tmp map[string]any
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		t.Fatalf("serialized data not valid JSON: %v", err)
+	}
+}
+
+func TestCreateExecutionResultAndResultsSummary_Basics(t *testing.T) {
+	h := NewMessageHandler()
+
+	r1 := h.CreateExecutionResult("echo", "success", "ok", "", 0, "dev1", 100*time.Millisecond)
+	r2 := h.CreateExecutionResult("echo", "failed", "", "err", 1, "dev2", 200*time.Millisecond)
+	r3 := h.CreateExecutionResult("echo", "timeout", "", "", 124, "dev3", 300*time.Millisecond)
+
+	got := h.CreateExecutionResults("cmd-1", "echo hello", "all", []internal.ExecutionResult{r1, r2, r3})
+	if got.CommandID != "cmd-1" || got.Command == "" || got.Target != "all" {
+		t.Fatalf("unexpected aggregated results header: %+v", got)
+	}
+	if got.Summary.TotalDevices != 3 || got.Summary.Successful != 1 || got.Summary.Failed != 1 || got.Summary.Timeout != 1 {
+		t.Fatalf("unexpected summary: %+v", got.Summary)
+	}
+	if got.Summary.AverageDuration == 0 {
+		t.Fatalf("expected non-zero average duration: %+v", got.Summary)
+	}
+}
+
+// Consolidated from messages_extra_test.go
+func TestSerializeDeserialize_ErrorPaths(t *testing.T) {
+	h := NewMessageHandlerWithLevel("none")
+	// SerializeMessage error: channels/functions are unsupported by json.Marshal
+	if _, err := h.SerializeMessage(make(chan int)); err == nil {
+		t.Fatalf("expected serialize error for channel input")
+	}
+
+	// Deserialize invalid JSON
+	if _, err := h.DeserializeMessage([]byte("{invalid json")); err == nil {
+		t.Fatalf("expected deserialize error for invalid json")
+	}
+
+	// Unknown message type
+	b := []byte(`{"type":"unknown"}`)
+	if _, err := h.DeserializeMessage(b); err == nil {
+		t.Fatalf("expected error for unknown message type")
+	}
+}
+
+func TestValidateExecutionResult_Errors(t *testing.T) {
+	h := NewMessageHandlerWithLevel("none")
+	r := internal.ExecutionResult{}
+	if err := h.ValidateMessage(&internal.ResultMessage{MeshMessage: internal.MeshMessage{ID: "x", TTL: 2, Sender: "s", Type: internal.MessageTypeResult, Timestamp: 1}, CommandID: "c", Result: r}); err == nil {
+		t.Fatalf("expected error for empty result id/device")
+	}
+
+	// Negative duration
+	r2 := internal.ExecutionResult{ID: "id", Device: "dev", Duration: -1}
+	if err := h.ValidateMessage(&internal.ResultMessage{MeshMessage: internal.MeshMessage{ID: "x", TTL: 2, Sender: "s", Type: internal.MessageTypeResult, Timestamp: 1}, CommandID: "c", Result: r2}); err == nil {
+		t.Fatalf("expected error for negative duration")
+	}
+}
+
+func TestTTLAndExpiryHelpers(t *testing.T) {
+	h := NewMessageHandlerWithLevel("none")
+	cmd := &internal.CommandMessage{MeshMessage: internal.MeshMessage{ID: "1", TTL: 2, Sender: "s", Type: internal.MessageTypeCommand, Timestamp: 1}, Command: "echo"}
+	if expired := h.IsExpired(cmd); expired {
+		t.Fatalf("cmd should not be expired")
+	}
+	if ok := h.DecrementTTL(cmd); !ok {
+		t.Fatalf("expected ttl remain > 0 after first decrement")
+	}
+	if ok := h.DecrementTTL(cmd); ok {
+		t.Fatalf("expected ttl == 0 now")
+	}
+	if !h.IsExpired(cmd) {
+		t.Fatalf("expected expired cmd")
+	}
+
+	res := &internal.ResultMessage{MeshMessage: internal.MeshMessage{ID: "2", TTL: 0, Sender: "s", Type: internal.MessageTypeResult, Timestamp: 1}, CommandID: "c", Result: internal.ExecutionResult{ID: "r", Device: "d"}}
+	if !h.IsExpired(res) {
+		t.Fatalf("result with ttl 0 should be expired")
+	}
+
+	base := &internal.MeshMessage{ID: "3", TTL: -1, Sender: "s", Type: internal.MessageTypePing, Timestamp: 1}
+	if !h.IsExpired(base) {
+		t.Fatalf("mesh with ttl -1 should be expired")
+	}
+}
