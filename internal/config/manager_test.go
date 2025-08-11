@@ -559,3 +559,11 @@ func TestManager_FilePermissions(t *testing.T) {
 		assert.Equal(t, expectedMode, info.Mode().Perm())
 	}
 }
+
+// Consolidated from manager_extra_test.go
+func TestManager_GetConfigPath_Defaults(t *testing.T) {
+	m := NewManagerWithLevel("none")
+	if p := m.GetConfigPath(); p == "" {
+		t.Fatalf("expected non-empty default config path")
+	}
+}
