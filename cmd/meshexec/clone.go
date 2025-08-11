@@ -1,36 +1,40 @@
 package main
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 
-    "github.com/spf13/cobra"
+	"github.com/spf13/cobra"
 )
 
 var (
-    cloneTarget string
-    cloneDest   string
+	cloneTarget string
+	cloneDest   string
 )
 
 var cloneCmd = &cobra.Command{
-    Use:   "clone",
-    Short: "Clone a repository or file set from a mesh peer",
-    Run: func(cmd *cobra.Command, args []string) {
-        // Stub: only parse and echo arguments for now
-        fmt.Println("Clone preview (stub)")
-        fmt.Printf("  Target : %s\n", cloneTarget)
-        if cloneDest != "" {
-            fmt.Printf("  Dest   : %s\n", cloneDest)
-        }
-        fmt.Fprintln(os.Stderr, "Clone is not implemented yet.")
-        os.Exit(3)
-    },
+	Use:   "clone",
+	Short: "Clone a repository or file set from a mesh peer",
+	Run: func(cmd *cobra.Command, args []string) {
+		if logger != nil {
+			logger.Info("clone: invoked", map[string]interface{}{"target": cloneTarget, "dest": cloneDest})
+		}
+		// Stub: only parse and echo arguments for now
+		fmt.Println("Clone preview (stub)")
+		fmt.Printf("  Target : %s\n", cloneTarget)
+		if cloneDest != "" {
+			fmt.Printf("  Dest   : %s\n", cloneDest)
+		}
+		if logger != nil {
+			logger.Warn("clone: not implemented", nil)
+		}
+		fmt.Fprintln(os.Stderr, "Clone is not implemented yet.")
+		os.Exit(3)
+	},
 }
 
 func init() {
-    rootCmd.AddCommand(cloneCmd)
-    cloneCmd.Flags().StringVarP(&cloneTarget, "target", "t", "auto", "specific peer to clone from (default: auto) (stub)")
-    cloneCmd.Flags().StringVar(&cloneDest, "dest", ".", "destination directory (stub)")
+	rootCmd.AddCommand(cloneCmd)
+	cloneCmd.Flags().StringVarP(&cloneTarget, "target", "t", "auto", "specific peer to clone from (default: auto) (stub)")
+	cloneCmd.Flags().StringVar(&cloneDest, "dest", ".", "destination directory (stub)")
 }
-
-
