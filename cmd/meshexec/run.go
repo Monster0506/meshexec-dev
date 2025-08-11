@@ -28,6 +28,10 @@ var (
 	runStdinFile string
 )
 
+// runMessageHook allows tests to inspect the constructed CommandMessage.
+// In production, this remains nil.
+var runMessageHook func(*internal.CommandMessage)
+
 var runCmd = &cobra.Command{
 	Use:     "run [command] [args...]",
 	Short:   "Send a command to the mesh",
@@ -130,7 +134,11 @@ var runCmd = &cobra.Command{
 			msg.StdinRef = runStdinFile
 		}
 
-		if runDryRun {
+        if runMessageHook != nil {
+            runMessageHook(msg)
+        }
+
+        if runDryRun {
 			// Show dry-run information
 			fmt.Println("Dry run: command dispatch preview")
 			fmt.Printf("  Command: %s\n", command)

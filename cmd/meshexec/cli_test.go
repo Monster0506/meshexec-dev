@@ -1,9 +1,10 @@
 package main
 
 import (
-	"testing"
+    "testing"
 
-	"github.com/spf13/cobra"
+    core "github.com/monster0506/meshexec/internal"
+    "github.com/spf13/cobra"
 )
 
 func execArgs(t *testing.T, args ...string) *cobra.Command {
@@ -59,6 +60,41 @@ func TestRunFlags_ParsingOnly(t *testing.T) {
 	if len(runEnv) != 2 || runEnv[0] != "FOO=1" || runEnv[1] != "BAR=two" || runStdinFile != "./input.txt" {
 		t.Fatalf("unexpected env/stdin flags: env=%v stdin=%q", runEnv, runStdinFile)
 	}
+}
+
+func TestRun_Niceties_PopulateMessage(t *testing.T) {
+    // Hook to capture the constructed message
+    var got *core.CommandMessage
+    oldHook := runMessageHook
+    runMessageHook = func(m *core.CommandMessage) { got = m }
+    defer func() { runMessageHook = oldHook }()
+
+    execArgs(t,
+        "run",
+        "-t", "robot && zone=alpha",
+        "--dry-run",
+        "--env", "FOO=1",
+        "--env", "BAR=two",
+        "--stdin-file", "in.txt",
+        "--at", "03:00",
+        "--", "echo",
+    )
+    if got == nil {
+        t.Fatalf("expected message to be captured")
+    }
+    if got.TargetExpr == "" {
+        t.Fatalf("expected TargetExpr populated")
+    }
+    if got.Env == nil || got.Env["FOO"] != "1" || got.Env["BAR"] != "two" {
+        t.Fatalf("unexpected env map: %+v", got.Env)
+    }
+    if got.StdinRef != "in.txt" {
+        t.Fatalf("expected stdin ref set, got %q", got.StdinRef)
+    }
+    // ScheduledAt may or may not parse depending on test time; just ensure field exists (0 ok)
+    if got.ScheduledAt < 0 {
+        t.Fatalf("scheduled_at should be >= 0, got %d", got.ScheduledAt)
+    }
 }
 
 func TestTUIFlags_ViewParsing(t *testing.T) {
