@@ -2,6 +2,7 @@ package ble
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -130,6 +131,53 @@ func TestManagerConnectUpdatesPeer(t *testing.T) {
 	if !p.Connected {
 		t.Fatalf("expected peer Connected=true, got %+v", p)
 	}
+}
+
+// Additional tests to exercise StopDiscovery (no-op) and dropped updates path
+type advOnlyTransport struct{ ch chan *core.Advertisement }
+
+func (a *advOnlyTransport) Advertise(ctx context.Context, serviceData []byte) error { return nil }
+func (a *advOnlyTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
+    if a.ch == nil {
+        a.ch = make(chan *core.Advertisement)
+    }
+	return a.ch, nil
+}
+func (a *advOnlyTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
+	return &core.Connection{Address: addr, MTU: 185, Connected: true}, nil
+}
+func (a *advOnlyTransport) CreateGATTService() (*core.GATTService, error) {
+	return &core.GATTService{UUID: "x"}, nil
+}
+
+func TestManager_StopDiscovery_NoActiveAndDroppedUpdates(t *testing.T) {
+	tr := &advOnlyTransport{}
+	logger := logging.NewLogger("none")
+	mgr := NewManager(tr, logger)
+	// Stop without start: should be no-op
+	mgr.StopDiscovery()
+
+	// Start discovery
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := mgr.StartDiscovery(ctx); err != nil {
+		t.Fatalf("StartDiscovery error: %v", err)
+	}
+	// Create a subscription but do not read from it to fill up buffer via manager
+	subCtx, subCancel := context.WithCancel(context.Background())
+	defer subCancel()
+	_ = mgr.Subscribe(subCtx)
+
+	// Flood advertisements to force subscriber channel to drop (buffer overflows)
+	go func() {
+		for i := 0; i < 50; i++ {
+			tr.ch <- &core.Advertisement{Address: fmt.Sprintf("AA:BB:CC:DD:EE:%02X", i), Name: "x", RSSI: -50, Timestamp: time.Now()}
+		}
+	}()
+	// Allow processing
+	time.Sleep(100 * time.Millisecond)
+	// Stop discovery to hit active-cancel branch
+	mgr.StopDiscovery()
 }
 
 // --- Transport type labeling tests ---
