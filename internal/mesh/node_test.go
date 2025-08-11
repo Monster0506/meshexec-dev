@@ -24,6 +24,14 @@ func (s stubTransport) CreateGATTService() (*core.GATTService, error) {
 	return &core.GATTService{UUID: "x"}, nil
 }
 
+// Implement SendNotification/SubscribeWriteNotifications for fragmentation E2E test
+func (s stubTransport) SendNotification(ctx context.Context, data []byte) error { return nil }
+func (s stubTransport) SubscribeWriteNotifications(ctx context.Context) (<-chan []byte, func(), error) {
+	ch := make(chan []byte)
+	cancel := func() { close(ch) }
+	return ch, cancel, nil
+}
+
 func TestNode_StartStop_SubscribeAndSend(t *testing.T) {
 	cfg := core.DefaultConfig()
 	n := NewNode(stubTransport{}, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
@@ -50,6 +58,34 @@ func TestNode_StartStop_SubscribeAndSend(t *testing.T) {
 
 	if err := n.Stop(); err != nil {
 		t.Fatalf("stop error: %v", err)
+	}
+}
+
+// Fragmentation framing unit tests (local only; transport not used)
+func TestNode_BuildFramesAndReassemble(t *testing.T) {
+	cfg := core.DefaultConfig()
+	n := NewNode(stubTransport{}, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
+	// Create payload large enough to force multiple frames
+	big := make([]byte, 0, 1)
+	for i := 0; i < 400; i++ {
+		big = append(big, byte('A'+(i%26)))
+	}
+	frames := n.buildFramesWithMTU("msg-1", big, 120)
+	if len(frames) < 2 {
+		t.Fatalf("expected fragmentation, got %d frames", len(frames))
+	}
+	// Feed frames in order and expect final reassembly only at end
+	for i, fr := range frames {
+		full := n.tryReassemble(fr)
+		if i < len(frames)-1 {
+			if full != nil {
+				t.Fatalf("expected nil before last frame, got %d bytes", len(full))
+			}
+		} else {
+			if full == nil || len(full) != len(big) {
+				t.Fatalf("expected full reassembly of %d bytes, got %v", len(big), len(full))
+			}
+		}
 	}
 }
 

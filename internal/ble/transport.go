@@ -38,6 +38,9 @@ type Transport struct {
 
 	// stopAdvertise cancels the background advertising goroutine when present.
 	stopAdvertise context.CancelFunc
+
+	// GATT simulation: per-address message subscribers receive reassembled messages
+	gattSubscribers map[string][]chan []byte
 }
 
 // NewTransport creates a new simulated BLE transport.
@@ -61,6 +64,7 @@ func NewTransportWithLogger(logger *logging.Logger) *Transport {
 		advertiseInterval: 1 * time.Second,
 		scanSubscribers:   make(map[int]chan *core.Advertisement),
 		connectionState:   make(map[string]*core.Connection),
+		gattSubscribers:   make(map[string][]chan []byte),
 	}
 
 	logger.Info("Simulated BLE transport initialized", map[string]interface{}{
@@ -312,6 +316,90 @@ func isMAC(s string) bool {
 	}
 	// A minimal sanity check; we rely on format only here
 	return true
+}
+
+// LocalAddress returns the simulated local device address (for tests)
+func (t *Transport) LocalAddress() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.localAddress
+}
+
+// SubscribeGATT registers to receive complete message payloads addressed to the given MAC.
+// Returns a channel of message bytes and an unsubscribe function.
+func (t *Transport) SubscribeGATT(addr string) (<-chan []byte, func(), error) {
+	if !isMAC(addr) {
+		return nil, nil, errors.New("invalid address format")
+	}
+	ch := make(chan []byte, 16)
+	t.mu.Lock()
+	t.gattSubscribers[addr] = append(t.gattSubscribers[addr], ch)
+	t.mu.Unlock()
+	unsub := func() {
+		t.mu.Lock()
+		subs := t.gattSubscribers[addr]
+		out := subs[:0]
+		for _, c := range subs {
+			if c != ch {
+				out = append(out, c)
+			}
+		}
+		if len(out) == 0 {
+			delete(t.gattSubscribers, addr)
+		} else {
+			t.gattSubscribers[addr] = out
+		}
+		close(ch)
+		t.mu.Unlock()
+	}
+	return ch, unsub, nil
+}
+
+// SendGATT simulates sending a message payload to a device by address with fragmentation.
+// Reassembles and delivers complete messages to subscribers of that address.
+func (t *Transport) SendGATT(ctx context.Context, addr string, data []byte) error {
+	if !isMAC(addr) {
+		return errors.New("invalid address format")
+	}
+	t.mu.Lock()
+	// lazy connect state ensure entry exists
+	if _, ok := t.connectionState[addr]; !ok {
+		t.connectionState[addr] = &core.Connection{Address: addr, MTU: 185, Connected: true}
+	}
+	mtu := t.connectionState[addr].MTU
+	subs := append([]chan []byte(nil), t.gattSubscribers[addr]...)
+	t.mu.Unlock()
+
+	if len(subs) == 0 {
+		// No subscribers; drop silently
+		if t.logger != nil {
+			t.logger.Warn("GATT send with no subscribers", map[string]interface{}{"address": addr, "len": len(data)})
+		}
+		return nil
+	}
+	// Compute payload chunk size allowing simple header overhead
+	payloadSize := mtu - 20
+	if payloadSize < 32 {
+		payloadSize = 32
+	}
+	// Fragment data into chunks
+	total := (len(data) + payloadSize - 1) / payloadSize
+	// Reassemble immediately then deliver as one message to subscribers to simulate complete reassembly at receiver
+	// In a more detailed simulation, we would push frames and reassemble per-subscriber.
+	// Here we simply deliver the original payload to each subscriber in a non-blocking fashion.
+	delivered := 0
+	for _, sub := range subs {
+		select {
+		case sub <- append([]byte(nil), data...):
+			delivered++
+		default:
+			// drop if subscriber is slow
+		}
+	}
+	if t.logger != nil {
+		t.logger.Info("GATT message sent", map[string]interface{}{"address": addr, "total_chunks": total, "bytes": len(data), "delivered": delivered})
+	}
+	return nil
 }
 
 // tryNewWinRT is provided by a Windows-specific file when built with the winrt tag.

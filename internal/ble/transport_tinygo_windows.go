@@ -28,6 +28,10 @@ type tgTransport struct {
 	// Note: Windows peripheral/server not available via tinygo.org/x/bluetooth in this toolchain
 }
 
+// Note: For real (non-simulated) TX/RX on TinyGo backend, we rely on central role connect + characteristic write/notify
+// when supported. On Windows in this toolchain, peripheral role is unavailable; TX/RX over GATT server is not supported,
+// so we intentionally do not add a simulated path here.
+
 // NewNativeTransport returns a tinygo-backed transport on Windows.
 func NewNativeTransport(cfg *core.NetworkConfig) (core.BLETransport, error) {
 	return newNativeWithLogger(cfg, nil)

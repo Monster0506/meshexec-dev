@@ -134,11 +134,11 @@ var runCmd = &cobra.Command{
 			msg.StdinRef = runStdinFile
 		}
 
-        if runMessageHook != nil {
-            runMessageHook(msg)
-        }
+		if runMessageHook != nil {
+			runMessageHook(msg)
+		}
 
-        if runDryRun {
+		if runDryRun {
 			// Show dry-run information
 			fmt.Println("Dry run: command dispatch preview")
 			fmt.Printf("  Command: %s\n", command)

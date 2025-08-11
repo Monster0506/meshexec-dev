@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,25 +22,46 @@ func startStubSidecar(t *testing.T) (addr string, stop func()) {
 		t.Fatalf("listen: %v", err)
 	}
 	done := make(chan struct{})
+	var accepted net.Conn
+	var acceptedMu sync.Mutex
 	go func() {
 		defer close(done)
 		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
+		acceptedMu.Lock()
+		accepted = conn
+		acceptedMu.Unlock()
 		defer func() { _ = conn.Close() }()
 		dec := json.NewDecoder(bufio.NewReader(conn))
 		enc := json.NewEncoder(conn)
-		for i := 0; i < 4; i++ {
+		for {
 			var req map[string]any
 			if err := dec.Decode(&req); err != nil {
 				return
 			}
-			_ = enc.Encode(map[string]any{"ok": true, "data": map[string]any{}})
+			action, _ := req["action"].(string)
+			switch action {
+			case "gatt_subscribe":
+				_ = enc.Encode(map[string]any{"ok": true})
+				// stream a single synthetic gatt_write event
+				_ = enc.Encode(map[string]any{"ok": true, "data": map[string]any{"event": "gatt_write", "value_b64": "SGVsbG8="}})
+			case "gatt_unsubscribe":
+				_ = enc.Encode(map[string]any{"ok": true})
+				return
+			default:
+				_ = enc.Encode(map[string]any{"ok": true, "data": map[string]any{}})
+			}
 		}
 	}()
 	return ln.Addr().String(), func() {
 		_ = ln.Close()
+		acceptedMu.Lock()
+		if accepted != nil {
+			_ = accepted.Close()
+		}
+		acceptedMu.Unlock()
 		<-done
 	}
 }

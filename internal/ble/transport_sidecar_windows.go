@@ -103,6 +103,11 @@ func (t *SidecarTransport) do(action string, params map[string]interface{}) (*si
 	return &resp, nil
 }
 
+// DoSidecar exposes the sidecar request/response for higher-level operations (e.g., GATT write/notify).
+func (t *SidecarTransport) DoSidecar(action string, params map[string]interface{}) (*sidecarResponse, error) {
+	return t.do(action, params)
+}
+
 func (t *SidecarTransport) Advertise(ctx context.Context, serviceData []byte) error {
 	if t.logger != nil {
 		t.logger.Info("Sidecar: starting advertise", map[string]interface{}{"len": len(serviceData)})
@@ -154,3 +159,111 @@ func (t *SidecarTransport) CreateGATTService() (*core.GATTService, error) {
 	}
 	return &core.GATTService{UUID: cfg.Network.ServiceUUID, Characteristics: []core.GATTCharacteristic{{UUID: cfg.Network.CharacteristicUUID, Writable: true}}}, nil
 }
+
+// SubscribeWriteNotifications subscribes to incoming GATT write events from sidecar and streams payloads.
+// A dedicated TCP connection is used for the subscription so it doesn't interfere with request/response traffic.
+func (t *SidecarTransport) SubscribeWriteNotifications(ctx context.Context) (<-chan []byte, func(), error) {
+	// open dedicated connection
+	c, err := net.Dial("tcp", t.addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make(chan []byte, 32)
+	// send subscribe request
+	enc := json.NewEncoder(c)
+	subReq := sidecarRequest{Action: "gatt_subscribe"}
+	if err := enc.Encode(&subReq); err != nil {
+		_ = c.Close()
+		return nil, nil, err
+	}
+	// read responses/events
+	go func() {
+		defer close(out)
+		dec := json.NewDecoder(bufio.NewReader(c))
+		for {
+			select {
+			case <-ctx.Done():
+				// attempt graceful unsubscribe
+				_ = json.NewEncoder(c).Encode(sidecarRequest{Action: "gatt_unsubscribe"})
+				_ = c.Close()
+				return
+			default:
+			}
+			var resp sidecarResponse
+			if err := dec.Decode(&resp); err != nil {
+				_ = c.Close()
+				return
+			}
+			if !resp.Ok {
+				continue
+			}
+			if resp.Data != nil {
+				if evt, ok := resp.Data["event"].(string); ok && evt == "gatt_write" {
+					if v, ok := resp.Data["value_b64"].(string); ok {
+						if b, err := base64.StdEncoding.DecodeString(v); err == nil {
+							select {
+							case out <- b:
+							default:
+							}
+						}
+					}
+				}
+			}
+		}
+	}()
+	// unsubscribe func closes connection and channel will end
+	unsub := func() { _ = c.Close() }
+	return out, unsub, nil
+}
+
+// SendNotification sends a notification payload via sidecar GATT characteristic.
+func (t *SidecarTransport) SendNotification(ctx context.Context, data []byte) error {
+	if t.logger != nil {
+		t.logger.Debug("Sidecar: sending GATT notification", map[string]interface{}{"len": len(data)})
+	}
+	p := map[string]interface{}{
+		"value_b64": base64.StdEncoding.EncodeToString(data),
+	}
+	// Retry with simple backoff
+	var lastErr error
+	backoff := 50 * time.Millisecond
+	for attempt := 0; attempt < 4; attempt++ {
+		if ctx.Err() != nil {
+			if lastErr != nil {
+				return lastErr
+			}
+			return ctx.Err()
+		}
+		resp, err := t.DoSidecar("gatt_notify", p)
+		if err == nil && resp.Ok {
+			return nil
+		}
+		if err != nil {
+			lastErr = err
+		} else if !resp.Ok {
+			if resp.Error == "" {
+				resp.Error = "gatt_notify failed"
+			}
+			lastErr = errors.New(resp.Error)
+		}
+		select {
+		case <-time.After(backoff):
+			if backoff < 400*time.Millisecond {
+				backoff *= 2
+			}
+		case <-ctx.Done():
+			if lastErr != nil {
+				return lastErr
+			}
+			return ctx.Err()
+		}
+	}
+	if lastErr == nil {
+		lastErr = errors.New("gatt_notify failed after retries")
+	}
+	return lastErr
+}
+
+// EffectiveMTU returns the effective ATT_MTU for notifications.
+// Windows GATT typically negotiates ~185; we use a conservative default.
+func (t *SidecarTransport) EffectiveMTU() int { return 185 }

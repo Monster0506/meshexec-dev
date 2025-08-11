@@ -52,6 +52,30 @@ func TestTransport_CreateGATTService(t *testing.T) {
 	}
 }
 
+func TestTransport_GATTSubscribeAndSend(t *testing.T) {
+	tr := NewTransportWithLogger(nil)
+	// Subscribe to local address
+	addr := tr.LocalAddress()
+	ch, unsub, err := tr.SubscribeGATT(addr)
+	if err != nil {
+		t.Fatalf("subscribe error: %v", err)
+	}
+	defer unsub()
+	// Send a message
+	payload := []byte("hello-over-gatt")
+	if err := tr.SendGATT(context.Background(), addr, payload); err != nil {
+		t.Fatalf("send gatt error: %v", err)
+	}
+	select {
+	case got := <-ch:
+		if string(got) != string(payload) {
+			t.Fatalf("unexpected payload: %q", string(got))
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timeout waiting for gatt payload")
+	}
+}
+
 // Consolidated from transport_zero_test.go
 func TestNewTransport_Basic(t *testing.T) {
 	t1 := NewTransport()

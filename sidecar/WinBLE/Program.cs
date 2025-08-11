@@ -12,6 +12,7 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 // Lightweight structured logger
 void Log(string level, string message, IDictionary<string, object?>? fields = null)
@@ -112,6 +113,24 @@ catch (Exception ex)
 BluetoothLEAdvertisementPublisher? publisher = null;
 GattServiceProvider? serviceProvider = null;
 GattLocalCharacteristic? characteristic = null;
+
+// Subscribers for streaming write events back to TCP clients
+var subLock = new object();
+var subscribers = new HashSet<StreamWriter>();
+async Task BroadcastAsync(string json)
+{
+    List<StreamWriter> writers;
+    lock (subLock)
+    {
+        writers = new List<StreamWriter>(subscribers);
+    }
+    foreach (var w in writers)
+    {
+        try { await w.WriteLineAsync(json); } catch { }
+    }
+}
+
+// (removed duplicate static subscription helpers; using local subLock/subscribers above)
 
 async Task<JsonElement> HandleAsync(JsonElement req)
 {
@@ -255,7 +274,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 characteristic = chrRes.Characteristic;
                 Log("DEBUG", "gatt characteristic created", new Dictionary<string, object?> { { "svcUuid", svcUuid! }, { "chrUuid", chrUuid! }, { "properties", chrParams.CharacteristicProperties.ToString() } });
 
-                // Basic handlers (no data flow yet)
+                // Broadcast incoming writes to subscribed TCP clients
                 characteristic.WriteRequested += async (s, e) =>
                 {
                     var deferral = e.GetDeferral();
@@ -264,6 +283,15 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                         var req2 = await e.GetRequestAsync();
                         var len = req2.Value?.Length ?? 0;
                         Log("DEBUG", "gatt write request", new Dictionary<string, object?> { { "len", len } });
+                        if (req2.Value != null)
+                        {
+                            var bytes = new byte[req2.Value.Length];
+                            DataReader.FromBuffer(req2.Value).ReadBytes(bytes);
+                            var b64 = Convert.ToBase64String(bytes);
+                            var dataObj = new Dictionary<string, object?> { ["event"] = "gatt_write", ["value_b64"] = b64 };
+                            var payload = JsonSerializer.Serialize(new { ok = true, data = dataObj });
+                            await BroadcastAsync(payload);
+                        }
                         req2.Respond();
                     }
                     finally { deferral.Complete(); }
@@ -282,6 +310,18 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 }
                 return JsonDocument.Parse("{\"ok\":true}").RootElement;
             }
+        case "gatt_notify":
+            {
+                if (characteristic == null)
+                    throw new Exception("characteristic not created");
+                var p = req.GetProperty("params");
+                var b64 = p.GetProperty("value_b64").GetString() ?? "";
+                var bytes = Convert.FromBase64String(b64);
+                Log("DEBUG", "gatt_notify", new Dictionary<string, object?> { { "len", bytes.Length } });
+                await characteristic.NotifyValueAsync(bytes.AsBuffer());
+                return JsonDocument.Parse("{\"ok\":true}").RootElement;
+            }
+        // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope
         default:
             throw new NotSupportedException($"unknown action {action}");
     }
@@ -306,7 +346,23 @@ async Task ServeAsync(TcpClient client)
         {
             Log("DEBUG", "recv line", new Dictionary<string, object> { { "len", line.Length }, { "line", line } });
             using var doc = JsonDocument.Parse(line);
-            var resp = await HandleAsync(doc.RootElement);
+            var root = doc.RootElement;
+            var action = root.GetProperty("action").GetString() ?? string.Empty;
+            if (action == "gatt_subscribe")
+            {
+                lock (subLock) { subscribers.Add(writer); }
+                var ok = JsonDocument.Parse("{\"ok\":true}").RootElement.GetRawText();
+                await writer.WriteLineAsync(ok);
+                continue;
+            }
+            if (action == "gatt_unsubscribe")
+            {
+                lock (subLock) { subscribers.Remove(writer); }
+                var ok = JsonDocument.Parse("{\"ok\":true}").RootElement.GetRawText();
+                await writer.WriteLineAsync(ok);
+                continue;
+            }
+            var resp = await HandleAsync(root);
             var outLine = resp.GetRawText();
             Log("DEBUG", "send line", new Dictionary<string, object> { { "len", outLine.Length }, { "line", outLine } });
             await writer.WriteLineAsync(outLine);

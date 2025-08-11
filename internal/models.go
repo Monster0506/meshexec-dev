@@ -30,14 +30,14 @@ type MeshMessage struct {
 // CommandMessage represents a command execution request
 type CommandMessage struct {
 	MeshMessage
-	Command   string   `json:"command"`
-	Arguments []string `json:"arguments,omitempty"`
-	WorkDir   string   `json:"workdir,omitempty"`
-	Timeout   int      `json:"timeout,omitempty"`
-    TargetExpr  string            `json:"target_expr,omitempty"`
-    Env         map[string]string `json:"env,omitempty"`
-    ScheduledAt int64             `json:"scheduled_at,omitempty"`
-    StdinRef    string            `json:"stdin_ref,omitempty"`
+	Command     string            `json:"command"`
+	Arguments   []string          `json:"arguments,omitempty"`
+	WorkDir     string            `json:"workdir,omitempty"`
+	Timeout     int               `json:"timeout,omitempty"`
+	TargetExpr  string            `json:"target_expr,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	ScheduledAt int64             `json:"scheduled_at,omitempty"`
+	StdinRef    string            `json:"stdin_ref,omitempty"`
 }
 
 // ResultMessage represents a command execution result
