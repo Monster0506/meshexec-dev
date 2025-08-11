@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
@@ -98,6 +99,36 @@ var runCmd = &cobra.Command{
 		// Create a message to represent what would be sent
 		mh := messages.NewMessageHandler()
 		msg := mh.CreateCommandMessage(command, cmdArgs, []string{runTarget}, cfg.Device.Name, runWorkDir, runTimeout)
+		// Fill niceties when present (schema supports omitempty)
+		msg.TargetExpr = runTarget
+		if len(runEnv) > 0 {
+			msg.Env = make(map[string]string, len(runEnv))
+			for _, kv := range runEnv {
+				if kv == "" {
+					continue
+				}
+				if eq := strings.IndexByte(kv, '='); eq > 0 {
+					k := kv[:eq]
+					v := kv[eq+1:]
+					msg.Env[k] = v
+				}
+			}
+		}
+		if runAt != "" {
+			// Defer parsing to backend; leave as string in CLI, but also store planned epoch if parseable
+			if d, err := time.Parse("15:04", runAt); err == nil {
+				// Today at HH:MM; backend may reinterpret
+				now := time.Now()
+				when := time.Date(now.Year(), now.Month(), now.Day(), d.Hour(), d.Minute(), 0, 0, now.Location())
+				if when.Before(now) {
+					when = when.Add(24 * time.Hour)
+				}
+				msg.ScheduledAt = when.Unix()
+			}
+		}
+		if runStdinFile != "" {
+			msg.StdinRef = runStdinFile
+		}
 
 		if runDryRun {
 			// Show dry-run information
