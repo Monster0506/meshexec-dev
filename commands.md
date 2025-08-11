@@ -1,17 +1,17 @@
 # MeshExec CLI - Commands and Flags
 
-This document lists the CLI commands and flags for `meshexec`, indicating what is implemented now and what is planned next per the project plan and requirements.
-
 ## Global
 
-- --config, -c [string] (Implemented)
-  - Path to config file (default is $HOME/.meshexec/config.toml)
-- --log-level, -l [debug|info|warn|error] (Implemented)
-  - Set log verbosity (console format always)
-- --verbose, -v (Implemented)
-  - Shorthand to set log level to debug
-- --version (Implemented)
-  - Print version and exit
+- `--config, -c [string]` (Implemented)  
+  Path to config file (default is $HOME/.meshexec/config.toml)
+- `--log-level, -l [debug|info|warn|error]` (Implemented)  
+  Set log verbosity (console format always)
+- `--verbose, -v` (Implemented)  
+  Shorthand to set log level to debug
+- `--version` (Implemented)  
+  Print version and exit
+
+---
 
 ## Commands
 
@@ -19,108 +19,127 @@ This document lists the CLI commands and flags for `meshexec`, indicating what i
 Manage MeshExec CLI configuration files and settings.
 
 Subcommands:
-- config init (Implemented)
-  - Initialize a default configuration file at the standard path or `-c/--config`
-  - Flags: inherits global flags
-- config show (Implemented)
-  - Show effective configuration and its source path
-  - Flags: inherits global flags
-- config validate (Implemented)
-  - Validate config file and report issues
-
-Future (Planned):
-- config edit (Planned)
-  - Open the active config in the system editor
-
-
-Related requirements: 8.1–8.4
+- `config init` (Implemented)  
+  Initialize a default configuration file at the standard path or `-c/--config`
+- `config show` (Implemented)  
+  Show effective configuration and its source path
+- `config validate` (Implemented)  
+  Validate config file and report issues
 
 ---
 
 ### run (Partially Implemented)
-Send a shell command to targeted devices in the mesh (dispatch pipeline pending).
+Send a shell command to targeted devices in the mesh.
 
-Usage:
-- meshexec run [flags] -- <command> [args...]
+**Usage:**
+```bash
+meshexec run [flags] -- <command> [args...]
+```
+or
+```bash
+meshexec run [flags] "<command string>"
+```
 
-Flags:
-- --target, -t [string] (Implemented: accepted by CLI, evaluator wiring pending)
-  - Target expression, e.g. "os=linux && role=worker"; default: "all"
-- --dry-run (Implemented)
-  - Show what would be executed without sending
-- --workdir, -w [string] (Implemented)
-  - Working directory hint for execution
-- --timeout, -T [ms] (Implemented)
-  - Command timeout in milliseconds (default 30000)
-- --safe-mode (Implemented)
-  - Enforce safety filters for dangerous commands (see Task 5.2)
+**Flags:**
+- `--target, -t [string]` (Implemented)  
+  Target expression, e.g. `"os=linux && role=worker"`; default: `"all"`
+- `--dry-run` (Implemented)  
+  Show what would be executed without sending
+- `--workdir, -w [string]` (Implemented)  
+  Working directory hint for execution
+- `--timeout, -T [ms]` (Implemented)  
+  Command timeout in milliseconds (default 30000)
+- `--safe-mode` (Implemented)  
+  Enforce safety filters for dangerous commands
+- `--sync`  
+  Ensure all targeted devices execute the command at the same synchronized time
+- `--at [time]`  
+  Schedule execution at a specific time (24h format or relative, e.g. `--at "03:00"` or `--at "+5m"`)
+- `--env KEY=VAL`  
+  Pass environment variables to remote execution
+- `--stdin-file PATH`  
+  Send a file as stdin to the command
 
-Future (Planned):
-- --no-sign / --encrypt (Planned)
-  - Control message signing and optional encryption (Req. 3)
-- --format [text|json] (Planned)
-  - Output format for results when execution is implemented
+---
 
-Related: Tasks 5.1–5.2, 9.2, Requirements 1, 3, 4, 7
+### sync
+Synchronize files or repositories between mesh peers.
+
+**Usage:**
+```bash
+meshexec sync [flags]
+```
+
+**Flags:**
+- `--repo [path]`  
+  Path to a Git repository to share with peers
+- `--target, -t [string]`  
+  Target devices to sync with (default: all)
+- `--direction [push|pull|both]`  
+  Control sync direction
+- `--dry-run`  
+  Show what would be synced without transferring
+
+---
+
+### clone
+Clone a repository or file set from a mesh peer.
+
+**Usage:**
+```bash
+meshexec clone [flags]
+```
+
+**Flags:**
+- `--target, -t [string]`  
+  Specific peer to clone from (default: auto-select best source)
+- `--dest [path]`  
+  Destination directory (default: current dir)
 
 ---
 
 ### join (Stub)
-Start participating in the mesh (advertise/scan/connect).
+Start participating in the mesh.
 
-Flags:
-- (none yet)
-
-Future (Planned):
-- --foreground (Planned)
-  - Run in the foreground and stream logs
-- --scan-interval [ms], --advertise-interval [ms] (Planned)
-  - Override discovery intervals at runtime (otherwise from config)
-
-Related: Tasks 6.1–6.2, 7.1, Requirements 2, 9
+**Flags:**
+- `--foreground`
+- `--scan-interval [ms]`
+- `--advertise-interval [ms]`
 
 ---
 
 ### list (Stub)
 Show connected peers.
 
-Flags:
-- --json (Planned)
-  - Output peers as JSON
-
-Related: Task 9.3, Requirements 6
+**Flags:**
+- `--json`
 
 ---
 
 ### status (Stub)
 Show recent execution status and network overview.
 
-Flags:
-- --json (Planned)
-  - Output status as JSON
-- --since [duration] (Planned)
-  - Filter recent results, e.g. "10m"
-
-Related: Task 9.3, Requirements 6
+**Flags:**
+- `--json`
+- `--since [duration]`
 
 ---
 
 ### tui (Stub)
 Launch the terminal UI dashboard.
 
-Flags:
-- --view [peers|results|overview] (Planned)
-  - Initial view to show on launch
-
-Related: Tasks 10.1–10.2, Requirements 6
+**Flags:**
+- `--view [peers|results|overview]`
 
 ---
 
 ### completion (Auto-generated by Cobra)
 Generate shell completion scripts.
 
-Usage:
-- meshexec completion [bash|zsh|fish|powershell]
+**Usage:**
+```bash
+meshexec completion [bash|zsh|fish|powershell]
+```
 
 ---
 
@@ -129,67 +148,6 @@ Show help for any command.
 
 ---
 
-## Notes on Targeting
+## Targeting
 
-- Target expressions follow the engine in `internal/targeting` with operators `&&`, `||`, `!`, parentheses, and key=value matches for device fields (name, role, os, arch, tags).
-- CLI wiring for evaluation: Planned to map config `Device` to `internal.DeviceInfo` and apply evaluator before local execution and when filtering remote dispatch (Task 9.2).
-
-## Mapping to Plan/Requirements
-
-- Plan 9.1: Basic CLI structure (Implemented)
-- Plan 9.2: run with targeting, dry-run, validation (Partially Implemented)
-- Plan 9.3: join/list/status (Stubs)
-- Plan 10.x: tui (Stub)
-- Req. 1,4,6,7: Govern run, targeting, status/list, safety
-- Req. 3: Signing/encryption flags (Planned)
-
-This file will be kept up-to-date as features are implemented.
-
----
-
-## TODO (Proposed Future Commands)
-
-- Security key management
-  - keys generate: create ed25519 keypair (flags: --path, --force)
-  - keys show: print public key (PEM/Base64)
-  - keys import/export: manage key files
-
-- Connectivity diagnostics
-  - ping [target]: send ping over mesh (flags: --count, --interval, --timeout)
-  - trace [target]: show path when routing is implemented
-
-- Mesh inspection
-  - mesh peers: list peers (alias of list)
-  - mesh routes: show routing table
-  - mesh topo: summarize topology (flags: --json, --verbose)
-
-- Agent control
-  - daemon start|stop|run: run agent in foreground/background (flags: --config, --log-level, --foreground)
-  - service install|uninstall|start|stop (Windows-specific)
-
-- Targeting utilities
-  - target validate <expr>: syntax/precedence check
-  - target test <expr> --device-json <file>: evaluate against provided DeviceInfo (flag: --explain to print AST)
-
-- Execution UX enhancements
-  - run flags: --wait, --expect N, --watch, --aggregate [first|all|timeout], --env KEY=VAL (multi), --stdin-file PATH
-  - results show <command-id>: fetch/print aggregated results (flags: --json)
-  - results tail: stream results as they arrive (flags: --since, --follow)
-
-- Logs
-  - logs show/tail (flags: --component [agent|mesh|exec], --since, --level)
-
-- Config QoL
-  - config get <key> / set <key> <value> (flag: --json)
-  - config path: print active config path
-
-- Update/self-manage
-  - self-update: fetch latest release (flag: --yes)
-  - version flags: --short, --commit
-
-- Doctor/support
-  - doctor: run environment checks (BLE adapter, permissions, key files, config) (flags: --fix, --json)
-
-- BLE developer tools (optional)
-  - ble scan: raw BLE scan for debugging (flags: --duration, --service-uuid)
-  - ble info: show adapter status
+- Target expressions follow the engine in `internal/targeting` with operators `&&`, `||`, `!`, parentheses, and key=value matches for device fields (`name`, `role`, `os`, `arch`, `tags`).
