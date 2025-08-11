@@ -111,3 +111,20 @@ func TestAgent_StartStop_Idempotent(t *testing.T) {
 		t.Fatalf("stop idempotent error: %v", err)
 	}
 }
+
+func TestAgent_ExecuteAndValidate(t *testing.T) {
+	mesh := &mockMesh{}
+	device := core.DeviceInfo{Name: "dev1"}
+	exec := mockExecutor{}
+	ag := New(mesh, nil, exec, allowAllTarget{}, device, logging.NewLogger("none"))
+	// ValidateCommand with simple message
+	msg := &core.MeshMessage{ID: "1", TTL: 5, Sender: "cli", Type: core.MessageTypeCommand, Command: "echo", Timestamp: time.Now().Unix()}
+	if err := ag.ValidateCommand(msg); err != nil {
+		t.Fatalf("validate error: %v", err)
+	}
+	// ExecuteCommand directly
+	res, err := ag.ExecuteCommand("echo")
+	if err != nil || res == nil {
+		t.Fatalf("execute error: %v res=%+v", err, res)
+	}
+}
