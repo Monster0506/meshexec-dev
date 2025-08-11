@@ -43,13 +43,21 @@ func TestRunFlags_ParsingOnly(t *testing.T) {
 		"--format", "json",
 		"--encrypt",
 		"--no-sign",
+		"--sync",
+		"--at", "03:00",
+		"--env", "FOO=1",
+		"--env", "BAR=two",
+		"--stdin-file", "./input.txt",
 		"--", "echo", "hello",
 	)
 	if runTarget != "os=linux" || !runDryRun || runWorkDir != "/tmp" || runTimeout != 123 {
 		t.Fatalf("unexpected run flags parsed: target=%q dry=%v wd=%q timeout=%d", runTarget, runDryRun, runWorkDir, runTimeout)
 	}
-	if !runSafeMode || !runEncrypt || !runNoSign || runFormat != "json" {
-		t.Fatalf("unexpected safety/output flags: safe=%v enc=%v nosign=%v fmt=%q", runSafeMode, runEncrypt, runNoSign, runFormat)
+	if !runSafeMode || !runEncrypt || !runNoSign || runFormat != "json" || !runSync || runAt != "03:00" {
+		t.Fatalf("unexpected safety/output/schedule flags: safe=%v enc=%v nosign=%v fmt=%q sync=%v at=%q", runSafeMode, runEncrypt, runNoSign, runFormat, runSync, runAt)
+	}
+	if len(runEnv) != 2 || runEnv[0] != "FOO=1" || runEnv[1] != "BAR=two" || runStdinFile != "./input.txt" {
+		t.Fatalf("unexpected env/stdin flags: env=%v stdin=%q", runEnv, runStdinFile)
 	}
 }
 
@@ -113,5 +121,27 @@ func TestListFlags_ParsingOnly(t *testing.T) {
 	execArgs(t, "list", "--json", "--timeout", "2500")
 	if !listJSON || listTimeoutMs != 2500 {
 		t.Fatalf("unexpected list flags: json=%v timeout=%d", listJSON, listTimeoutMs)
+	}
+}
+
+func TestSyncFlags_ParsingOnly(t *testing.T) {
+	oldRun := syncCmd.Run
+	syncCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { syncCmd.Run = oldRun }()
+
+	execArgs(t, "sync", "--repo", ".", "-t", "all", "--direction", "push", "--dry-run")
+	if !syncDryRun || syncRepoPath != "." || syncTargetExpr != "all" || syncDirection != "push" {
+		t.Fatalf("unexpected sync flags: dry=%v repo=%q target=%q dir=%q", syncDryRun, syncRepoPath, syncTargetExpr, syncDirection)
+	}
+}
+
+func TestCloneFlags_ParsingOnly(t *testing.T) {
+	oldRun := cloneCmd.Run
+	cloneCmd.Run = func(cmd *cobra.Command, args []string) {}
+	defer func() { cloneCmd.Run = oldRun }()
+
+	execArgs(t, "clone", "-t", "peer-1", "--dest", "./out")
+	if cloneTarget != "peer-1" || cloneDest != "./out" {
+		t.Fatalf("unexpected clone flags: target=%q dest=%q", cloneTarget, cloneDest)
 	}
 }
