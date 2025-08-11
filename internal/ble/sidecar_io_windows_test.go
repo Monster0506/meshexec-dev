@@ -27,7 +27,7 @@ func startStubSidecar(t *testing.T) (addr string, stop func()) {
 		if err != nil {
 			return
 		}
-        defer func() { _ = conn.Close() }()
+		defer func() { _ = conn.Close() }()
 		dec := json.NewDecoder(bufio.NewReader(conn))
 		enc := json.NewEncoder(conn)
 		for i := 0; i < 4; i++ {

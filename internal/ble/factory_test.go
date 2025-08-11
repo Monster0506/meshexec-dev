@@ -56,6 +56,6 @@ func TestFactory_NewWithLogger_AutoSimPath_Basics(t *testing.T) {
 }
 
 func TestFactory_NewWithLogger_AutoDefault_Basics(t *testing.T) {
-    t.Setenv("MESHEXEC_BLE_IMPL", "")
-    _, _ = NewWithLogger(&core.NetworkConfig{}, logging.NewLogger("none"))
+	t.Setenv("MESHEXEC_BLE_IMPL", "")
+	_, _ = NewWithLogger(&core.NetworkConfig{}, logging.NewLogger("none"))
 }

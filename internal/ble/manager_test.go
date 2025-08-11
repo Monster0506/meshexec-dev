@@ -138,9 +138,9 @@ type advOnlyTransport struct{ ch chan *core.Advertisement }
 
 func (a *advOnlyTransport) Advertise(ctx context.Context, serviceData []byte) error { return nil }
 func (a *advOnlyTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
-    if a.ch == nil {
-        a.ch = make(chan *core.Advertisement)
-    }
+	if a.ch == nil {
+		a.ch = make(chan *core.Advertisement)
+	}
 	return a.ch, nil
 }
 func (a *advOnlyTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
