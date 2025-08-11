@@ -66,7 +66,7 @@
     - Write unit tests for command safety validation on Windows and Unix
     - _Requirements: 7.2, 7.3, 7.4, 7.1_
 
-- [ ] 6. Implement Bluetooth LE transport layer
+- [x] 6. Implement Bluetooth LE transport layer
   - [x] 6.1 Create BLE transport interface and basic operations
     - Implement BLETransport interface with Advertise, Scan, and Connect methods
     - Use native Go Bluetooth libraries (e.g., tinygo.org/x/bluetooth or go-ble/ble) for cross-platform support
@@ -75,7 +75,7 @@
     - Write unit tests with mock BLE transport using Go interfaces
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 6.2 Implement BLE message transmission
+  - [x] 6.2 Implement BLE message transmission
     - Add message sending and receiving over GATT characteristics using Go BLE libraries
     - Implement message fragmentation for large payloads with cross-platform MTU handling
     - Handle BLE connection errors and reconnection logic through Go BLE abstractions
