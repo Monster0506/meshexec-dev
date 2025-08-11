@@ -21,6 +21,10 @@ var (
 	runNoSign   bool
 	runEncrypt  bool
 	runFormat   string
+    runSync     bool
+    runAt       string
+    runEnv      []string
+    runStdinFile string
 )
 
 var runCmd = &cobra.Command{
@@ -82,7 +86,7 @@ var runCmd = &cobra.Command{
 			})
 		}
 
-		// Create a message to represent what would be sent
+        // Create a message to represent what would be sent
 		mh := messages.NewMessageHandler()
 		msg := mh.CreateCommandMessage(command, cmdArgs, []string{runTarget}, cfg.Device.Name, runWorkDir, runTimeout)
 
@@ -101,6 +105,18 @@ var runCmd = &cobra.Command{
 			fmt.Printf("  Safe   : %t\n", runSafeMode)
 			fmt.Printf("  Sign   : %s\n", map[bool]string{true: "disabled", false: "enabled"}[runNoSign])
 			fmt.Printf("  Encrypt: %t\n", runEncrypt)
+            if runSync {
+                fmt.Printf("  Sync   : %t\n", runSync)
+            }
+            if runAt != "" {
+                fmt.Printf("  At     : %s\n", runAt)
+            }
+            if len(runEnv) > 0 {
+                fmt.Printf("  Env    : %s\n", strings.Join(runEnv, ", "))
+            }
+            if runStdinFile != "" {
+                fmt.Printf("  Stdin  : %s\n", runStdinFile)
+            }
 			if runFormat != "" {
 				fmt.Printf("  Format : %s\n", runFormat)
 			}
@@ -134,6 +150,10 @@ func init() {
 	runCmd.Flags().BoolVar(&runNoSign, "no-sign", false, "do not sign messages (stub)")
 	runCmd.Flags().BoolVar(&runEncrypt, "encrypt", false, "encrypt command payloads (stub)")
 	runCmd.Flags().StringVar(&runFormat, "format", "", "output format for results: text|json (stub)")
+    runCmd.Flags().BoolVar(&runSync, "sync", false, "ensure synchronized execution start across targets (stub)")
+    runCmd.Flags().StringVar(&runAt, "at", "", "schedule execution at a specific time (e.g., '03:00' or '+5m') (stub)")
+    runCmd.Flags().StringArrayVar(&runEnv, "env", nil, "environment variables in KEY=VAL form (repeatable) (stub)")
+    runCmd.Flags().StringVar(&runStdinFile, "stdin-file", "", "file path to send as stdin to the command (stub)")
 
 	rootCmd.AddCommand(runCmd)
 }
