@@ -199,3 +199,18 @@ func TestLogger_ConsoleOutput(t *testing.T) {
 	assert.Contains(t, output, "value")
 	assert.False(t, strings.HasPrefix(strings.TrimSpace(output), "{"))
 }
+
+// Consolidated from logger_zero_test.go
+func TestLogger_WithFieldsAndGetLogger_Basics(t *testing.T) {
+	l := NewLogger("none")
+	if l == nil {
+		t.Fatalf("logger is nil")
+	}
+	l2 := l.WithField("k", 1)
+	l3 := l2.WithFields(map[string]interface{}{"a": "b"})
+	_ = l3.GetLogger()
+	l.Debug("d", nil)
+	l.Info("i", nil)
+	l.Warn("w", nil)
+	l.Error("e", nil, nil)
+}
