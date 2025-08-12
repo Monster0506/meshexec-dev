@@ -321,6 +321,59 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 await characteristic.NotifyValueAsync(bytes.AsBuffer());
                 return JsonDocument.Parse("{\"ok\":true}").RootElement;
             }
+        case "central_broadcast":
+            {
+                var p = req.GetProperty("params");
+                var svcUuid = p.GetProperty("service_uuid").GetString() ?? string.Empty;
+                var chrUuid = p.GetProperty("characteristic_uuid").GetString() ?? string.Empty;
+                var b64 = p.GetProperty("value_b64").GetString() ?? string.Empty;
+                var scanMs = p.TryGetProperty("scan_ms", out var vScan) ? vScan.GetInt32() : 800;
+                if (!Guid.TryParse(svcUuid, out var svc) || !Guid.TryParse(chrUuid, out var chr))
+                    throw new Exception("invalid service/characteristic UUIDs");
+                var data = Convert.FromBase64String(b64);
+                var watcher = new BluetoothLEAdvertisementWatcher
+                {
+                    ScanningMode = BluetoothLEScanningMode.Active
+                };
+                var tcs = new TaskCompletionSource<bool>();
+                watcher.Received += async (s, e) =>
+                {
+                    try
+                    {
+                        if (!e.Advertisement.ServiceUuids.Contains(svc)) return;
+                        var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(e.BluetoothAddress);
+                        if (dev == null) return;
+                        var result = await dev.GetGattServicesForUuidAsync(svc);
+                        if (result.Status != GattCommunicationStatus.Success) return;
+                        foreach (var service in result.Services)
+                        {
+                            var chrs = await service.GetCharacteristicsForUuidAsync(chr);
+                            if (chrs.Status != GattCommunicationStatus.Success) continue;
+                            foreach (var c in chrs.Characteristics)
+                            {
+                                GattCommunicationStatus status;
+                                try
+                                {
+                                    status = await c.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithoutResponse);
+                                }
+                                catch
+                                {
+                                    status = await c.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithResponse);
+                                }
+                                Log("INFO", "central write", new Dictionary<string, object?> { { "status", status.ToString() }, { "len", data.Length }, { "addr", dev.BluetoothAddress } });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("ERROR", "central write failed", new Dictionary<string, object?> { { "error", ex.Message } });
+                    }
+                };
+                watcher.Start();
+                await Task.Delay(scanMs);
+                watcher.Stop();
+                return JsonDocument.Parse("{\"ok\":true}").RootElement;
+            }
         // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope
         default:
             throw new NotSupportedException($"unknown action {action}");
