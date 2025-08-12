@@ -30,6 +30,10 @@ type SidecarTransport struct {
 
 	// fallback scanner for discovery
 	scanner core.BLETransport
+
+	// service/characteristic identifiers for central operations
+	serviceUUID string
+	charUUID    string
 }
 
 type sidecarRequest struct {
@@ -62,7 +66,9 @@ func tryNewSidecarTransport(cfg *core.NetworkConfig, logger *logging.Logger) (co
 	if err != nil {
 		fallback = newSim(cfg, logger)
 	}
-	st := &SidecarTransport{logger: logger, addr: addr, scanner: fallback}
+	svc := cfg.ServiceUUID
+	chr := cfg.CharacteristicUUID
+	st := &SidecarTransport{logger: logger, addr: addr, scanner: fallback, serviceUUID: svc, charUUID: chr}
 	return st, true, nil
 }
 
@@ -267,3 +273,23 @@ func (t *SidecarTransport) SendNotification(ctx context.Context, data []byte) er
 // EffectiveMTU returns the effective ATT_MTU for notifications.
 // Windows GATT typically negotiates ~185; we use a conservative default.
 func (t *SidecarTransport) EffectiveMTU() int { return 185 }
+
+// CentralBroadcast writes the given payload to all discovered peers advertising
+// the configured service UUID by connecting as a central and performing a characteristic write.
+// This provides a simple one-hop broadcast suitable for command delivery.
+func (t *SidecarTransport) CentralBroadcast(ctx context.Context, data []byte) error {
+	if t.serviceUUID == "" || t.charUUID == "" {
+		return errors.New("missing service/characteristic UUID for central broadcast")
+	}
+	p := map[string]interface{}{
+		"service_uuid":        t.serviceUUID,
+		"characteristic_uuid": t.charUUID,
+		"value_b64":           base64.StdEncoding.EncodeToString(data),
+		"scan_ms":             800,
+	}
+	// Best-effort: make a short-lived request; sidecar performs scan/connect/write internally
+	if _, err := t.do("central_broadcast", p); err != nil {
+		return err
+	}
+	return nil
+}
