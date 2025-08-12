@@ -105,15 +105,15 @@
     - Write integration tests for network topology changes
     - _Requirements: 2.4, 9.3, 9.4_
 
-- [ ] 8. Implement agent daemon core functionality
-  - [ ] 8.1 Create agent with command processing
+- [x] 8. Implement agent daemon core functionality
+  - [x] 8.1 Create agent with command processing
     - Implement Agent interface with Start, Stop, ProcessCommand methods
     - Add command message handling and execution coordination
     - Integrate with SecurityManager for message validation
     - Write unit tests for agent command processing
     - _Requirements: 1.1, 1.2, 3.2, 3.3_
 
-  - [ ] 8.2 Integrate agent with mesh networking and execution
+  - [x] 8.2 Integrate agent with mesh networking and execution
     - Connect agent to mesh node for message sending and receiving
     - Add command execution using CommandExecutor and result handling
     - Implement target expression evaluation for incoming commands
