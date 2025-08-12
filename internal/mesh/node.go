@@ -189,22 +189,34 @@ func (n *Node) SendMessage(msg *core.MeshMessage) error {
 	}
 
 	// Attempt BLE send via transport if supported
-	if sender, ok := n.transport.(interface {
-		SendNotification(ctx context.Context, data []byte) error
-	}); ok {
-		b, err := json.Marshal(msg)
-		if err == nil {
-			mtu := 185
-			if m, ok := n.transport.(interface{ EffectiveMTU() int }); ok {
-				if v := m.EffectiveMTU(); v > 0 {
-					mtu = v
-				}
+	b, err := json.Marshal(msg)
+	if err == nil {
+		mtu := 185
+		if m, ok := n.transport.(interface{ EffectiveMTU() int }); ok {
+			if v := m.EffectiveMTU(); v > 0 {
+				mtu = v
 			}
-			frames := n.buildFramesWithMTU(msg.ID, b, mtu)
-			// fire-and-forget with short timeout for the whole burst
+		}
+		frames := n.buildFramesWithMTU(msg.ID, b, mtu)
+
+		// Use notifications when available (peripheral role)
+		if sender, ok := n.transport.(interface {
+			SendNotification(ctx context.Context, data []byte) error
+		}); ok {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			for _, fr := range frames {
 				_ = sender.SendNotification(ctx, fr)
+			}
+			cancel()
+		}
+
+		// Use central broadcast when available (central role) to push frames to peers
+		if broadcaster, ok := n.transport.(interface {
+			CentralBroadcast(ctx context.Context, data []byte) error
+		}); ok {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			for _, fr := range frames {
+				_ = broadcaster.CentralBroadcast(ctx, fr)
 			}
 			cancel()
 		}
