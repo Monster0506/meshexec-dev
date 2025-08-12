@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/monster0506/meshexec/internal"
+	core "github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
 	"github.com/monster0506/meshexec/internal/executor"
+	"github.com/monster0506/meshexec/internal/mesh"
 	"github.com/monster0506/meshexec/internal/messages"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +32,12 @@ var (
 
 // runMessageHook allows tests to inspect the constructed CommandMessage.
 // In production, this remains nil.
-var runMessageHook func(*internal.CommandMessage)
+var runMessageHook func(*core.CommandMessage)
+
+// newMeshNodeForRun enables tests to inject a stub mesh node; defaults to real builder
+var newMeshNodeForRun = func(cfg *core.Config) (core.MeshNode, error) {
+	return mesh.NewNodeFromConfig(cfg)
+}
 
 var runCmd = &cobra.Command{
 	Use:     "run [command] [args...]",
@@ -52,8 +59,8 @@ var runCmd = &cobra.Command{
 		}
 		cfg, err := cfgMgr.Load()
 		if err != nil {
-			me := internal.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
+			me := core.NewConfigError("invalid_config", "failed to load configuration", map[string]interface{}{"error": err.Error()})
+			fmt.Fprintln(os.Stderr, core.FormatUserError(me))
 			os.Exit(1)
 		}
 
@@ -175,20 +182,48 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		// Non-dry-run: execution pipeline not implemented yet
-		if logger != nil {
-			logger.Warn("Execution pipeline not implemented yet. Use --dry-run for now.", map[string]interface{}{
-				"command": command,
-				"args":    cmdArgs,
-				"target":  runTarget,
-				"safe":    runSafeMode,
-				"no_sign": runNoSign,
-				"encrypt": runEncrypt,
-				"format":  runFormat,
-			})
+		// Non-dry-run: send over mesh and wait briefly for a result
+		node, err := newMeshNodeForRun(cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to initialize mesh: %v\n", err)
+			os.Exit(3)
 		}
-		fmt.Fprintln(os.Stderr, "Execution is not implemented yet. Use --dry-run to preview.")
-		os.Exit(3)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		if err := node.Start(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "mesh start error: %v\n", err)
+			os.Exit(4)
+		}
+
+		// Subscribe for results before sending
+		resCh := node.Subscribe(core.MessageTypeResult)
+
+		if err := node.SendMessage(&msg.MeshMessage); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to send command: %v\n", err)
+			_ = node.Stop()
+			os.Exit(5)
+		}
+		if logger != nil {
+			logger.Info("run: command sent", map[string]interface{}{"id": msg.ID, "target": runTarget})
+		}
+
+		// Wait for a single result or timeout
+		timeout := time.Duration(runTimeout) * time.Millisecond
+		if timeout <= 0 {
+			timeout = 5 * time.Second
+		}
+		select {
+		case rm := <-resCh:
+			if rm != nil {
+				fmt.Printf("Received a result message (id=%s, sender=%s)\n", rm.ID, rm.Sender)
+			} else {
+				fmt.Println("Result channel closed without message")
+			}
+		case <-time.After(timeout):
+			fmt.Fprintln(os.Stderr, "Timed out waiting for result (command may still be executing)")
+		}
+
+		_ = node.Stop()
 	},
 }
 
