@@ -54,6 +54,17 @@ func (h *MessageHandler) CreateCommandMessage(
 		Timeout:   timeout,
 	}
 
+	// Embed a raw JSON representation (without payload) for local delivery convenience
+	// to allow receivers to deserialize the full typed message from MeshMessage.Payload.
+	// Avoid recursion by marshaling a copy with empty payload.
+	{
+		tmp := *msg
+		tmp.Payload = nil
+		if b, err := json.Marshal(&tmp); err == nil {
+			msg.Payload = b
+		}
+	}
+
 	h.logger.Debug("Created command message", map[string]interface{}{
 		"message_id": msg.ID,
 		"command":    command,
@@ -82,6 +93,14 @@ func (h *MessageHandler) CreateResultMessage(
 		},
 		CommandID: commandID,
 		Result:    result,
+	}
+	// Embed raw JSON (without payload) for local delivery convenience
+	{
+		tmp := *msg
+		tmp.Payload = nil
+		if b, err := json.Marshal(&tmp); err == nil {
+			msg.Payload = b
+		}
 	}
 	return msg
 }

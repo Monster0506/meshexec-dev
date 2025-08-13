@@ -118,9 +118,8 @@ func (t *SidecarTransport) Advertise(ctx context.Context, serviceData []byte) er
 	if t.logger != nil {
 		t.logger.Info("Sidecar: starting advertise", map[string]interface{}{"len": len(serviceData)})
 	}
-	cfg := core.DefaultConfig()
 	params := map[string]interface{}{
-		"service_uuid":     cfg.Network.ServiceUUID,
+		"service_uuid":     t.serviceUUID,
 		"local_name":       "meshexec",
 		"service_data_b64": base64.StdEncoding.EncodeToString(serviceData),
 	}
@@ -154,16 +153,15 @@ func (t *SidecarTransport) CreateGATTService() (*core.GATTService, error) {
 	if t.logger != nil {
 		t.logger.Info("Sidecar: creating GATT service", nil)
 	}
-	cfg := core.DefaultConfig()
 	params := map[string]interface{}{
-		"service_uuid":        cfg.Network.ServiceUUID,
-		"characteristic_uuid": cfg.Network.CharacteristicUUID,
+		"service_uuid":        t.serviceUUID,
+		"characteristic_uuid": t.charUUID,
 		"properties":          "read,write,notify",
 	}
 	if _, err := t.do("gatt_create", params); err != nil {
 		return nil, err
 	}
-	return &core.GATTService{UUID: cfg.Network.ServiceUUID, Characteristics: []core.GATTCharacteristic{{UUID: cfg.Network.CharacteristicUUID, Writable: true}}}, nil
+	return &core.GATTService{UUID: t.serviceUUID, Characteristics: []core.GATTCharacteristic{{UUID: t.charUUID, Writable: true}}}, nil
 }
 
 // SubscribeWriteNotifications subscribes to incoming GATT write events from sidecar and streams payloads.
@@ -285,7 +283,7 @@ func (t *SidecarTransport) CentralBroadcast(ctx context.Context, data []byte) er
 		"service_uuid":        t.serviceUUID,
 		"characteristic_uuid": t.charUUID,
 		"value_b64":           base64.StdEncoding.EncodeToString(data),
-		"scan_ms":             800,
+		"scan_ms":             2000,
 	}
 	// Best-effort: make a short-lived request; sidecar performs scan/connect/write internally
 	if _, err := t.do("central_broadcast", p); err != nil {

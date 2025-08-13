@@ -133,6 +133,8 @@ func (n *Node) Start(ctx context.Context) error {
 						if full := n.tryReassemble(b); full != nil {
 							var m core.MeshMessage
 							if err := json.Unmarshal(full, &m); err == nil {
+								// Preserve raw JSON payload so subscribers can deserialize full message (e.g., results)
+								m.Payload = append([]byte(nil), full...)
 								n.publishLocal(&m)
 							}
 						}

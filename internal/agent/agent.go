@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -119,7 +120,7 @@ func (a *Agent) ProcessCommand(msg *core.MeshMessage) error {
 	var execRes *core.ExecutionResult
 	var execErr error
 	if a.exec != nil {
-		cmdLine := buildCommandLine(msg.Command, msg.Payload)
+		cmdLine := commandLineFromMessage(msg)
 		if err := a.exec.ValidateCommand(cmdLine); err != nil {
 			return err
 		}
@@ -145,7 +146,16 @@ func (a *Agent) ProcessCommand(msg *core.MeshMessage) error {
 			}
 		}
 	}
+	// Ensure required fields are populated for downstream validation/printing
 	execRes.Device = a.device.Name
+	if execRes.ID == "" {
+		mhTmp := messages.NewMessageHandlerWithLevel("none")
+		gen := mhTmp.CreateExecutionResult(msg.Command, execRes.Status, execRes.Stdout, execRes.Stderr, execRes.ExitCode, execRes.Device, time.Duration(execRes.Duration)*time.Millisecond)
+		execRes.ID = gen.ID
+		if execRes.Type == "" {
+			execRes.Type = gen.Type
+		}
+	}
 
 	// Create and sign result
 	mh := messages.NewMessageHandlerWithLevel("none")
@@ -170,13 +180,26 @@ func (a *Agent) ValidateCommand(msg *core.MeshMessage) error {
 	if a.exec == nil {
 		return nil
 	}
-	cmdLine := buildCommandLine(msg.Command, msg.Payload)
+	cmdLine := commandLineFromMessage(msg)
 	return a.exec.ValidateCommand(cmdLine)
 }
 
-func buildCommandLine(command string, payload []byte) string {
-	if command == "" {
+// commandLineFromMessage reconstructs the intended command line from a possibly down-cast MeshMessage.
+// If the raw JSON payload is present and represents a CommandMessage, we include arguments.
+func commandLineFromMessage(msg *core.MeshMessage) string {
+	if msg == nil {
 		return ""
 	}
-	return command
+	if len(msg.Payload) > 0 {
+		mh := messages.NewMessageHandlerWithLevel("none")
+		if v, err := mh.DeserializeMessage(msg.Payload); err == nil {
+			if cm, ok := v.(*core.CommandMessage); ok {
+				if len(cm.Arguments) > 0 {
+					return cm.Command + " " + strings.Join(cm.Arguments, " ")
+				}
+				return cm.Command
+			}
+		}
+	}
+	return msg.Command
 }

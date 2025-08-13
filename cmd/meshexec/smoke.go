@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	core "github.com/monster0506/meshexec/internal"
@@ -131,10 +132,29 @@ var smokeCmd = &cobra.Command{
 			os.Exit(6)
 		}
 
-		// Print result summary
-		fmt.Printf("Result received: id=%s type=%s sender=%s ttl=%d\n", got.ID, got.Type, got.Sender, got.TTL)
-		// In this smoke path, stdout/stderr/exitcode are carried inside ResultMessage payload (handled by higher layers),
-		// but MeshMessage schema does not include them; we just confirm receipt.
+		// Print rich result if payload contains a serialized ResultMessage
+		printed := false
+		if len(got.Payload) > 0 {
+			mh := messages.NewMessageHandlerWithLevel(logLevel)
+			if v, err := mh.DeserializeMessage(got.Payload); err == nil {
+				if res, ok := v.(*core.ResultMessage); ok {
+					r := res.Result
+					fmt.Printf("Result: status=%s code=%d device=%s\n", r.Status, r.ExitCode, r.Device)
+					if s := strings.TrimSpace(r.Stdout); s != "" {
+						fmt.Println("stdout:")
+						fmt.Println(s)
+					}
+					if s := strings.TrimSpace(r.Stderr); s != "" {
+						fmt.Println("stderr:")
+						fmt.Println(s)
+					}
+					printed = true
+				}
+			}
+		}
+		if !printed {
+			fmt.Printf("Result received: id=%s type=%s sender=%s ttl=%d\n", got.ID, got.Type, got.Sender, got.TTL)
+		}
 
 		// Cleanup
 		_ = ag.Stop()

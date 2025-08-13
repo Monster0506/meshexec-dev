@@ -215,7 +215,30 @@ var runCmd = &cobra.Command{
 		select {
 		case rm := <-resCh:
 			if rm != nil {
-				fmt.Printf("Received a result message (id=%s, sender=%s)\n", rm.ID, rm.Sender)
+				// If payload contains the raw JSON, try to deserialize ResultMessage for rich output
+				printed := false
+				if len(rm.Payload) > 0 {
+					var full messages.MessageHandler
+					// Use handler to deserialize based on embedded type
+					if v, err := full.DeserializeMessage(rm.Payload); err == nil {
+						if res, ok := v.(*core.ResultMessage); ok {
+							r := res.Result
+							fmt.Printf("Result: status=%s code=%d device=%s\n", r.Status, r.ExitCode, r.Device)
+							if s := strings.TrimSpace(r.Stdout); s != "" {
+								fmt.Println("stdout:")
+								fmt.Println(s)
+							}
+							if s := strings.TrimSpace(r.Stderr); s != "" {
+								fmt.Println("stderr:")
+								fmt.Println(s)
+							}
+							printed = true
+						}
+					}
+				}
+				if !printed {
+					fmt.Printf("Received a result message (id=%s, sender=%s)\n", rm.ID, rm.Sender)
+				}
 			} else {
 				fmt.Println("Result channel closed without message")
 			}

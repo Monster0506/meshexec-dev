@@ -282,7 +282,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     {
                         var req2 = await e.GetRequestAsync();
                         var len = req2.Value?.Length ?? 0;
-                        Log("DEBUG", "gatt write request", new Dictionary<string, object?> { { "len", len } });
+                        Log("INFO", "gatt write request", new Dictionary<string, object?> { { "len", len }, { "session", e.Session.SessionId } });
                         if (req2.Value != null)
                         {
                             var bytes = new byte[req2.Value.Length];
@@ -341,6 +341,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     try
                     {
                         if (!e.Advertisement.ServiceUuids.Contains(svc)) return;
+                        Log("INFO", "central match", new Dictionary<string, object?> { { "addr", e.BluetoothAddress }, { "rssi", e.RawSignalStrengthInDBm } });
                         var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(e.BluetoothAddress);
                         if (dev == null) return;
                         var result = await dev.GetGattServicesForUuidAsync(svc);
@@ -369,9 +370,11 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                         Log("ERROR", "central write failed", new Dictionary<string, object?> { { "error", ex.Message } });
                     }
                 };
+                Log("INFO", "central_broadcast start", new Dictionary<string, object?> { { "scan_ms", scanMs } });
                 watcher.Start();
                 await Task.Delay(scanMs);
                 watcher.Stop();
+                Log("INFO", "central_broadcast stop", null);
                 return JsonDocument.Parse("{\"ok\":true}").RootElement;
             }
         // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope

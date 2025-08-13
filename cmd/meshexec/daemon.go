@@ -86,6 +86,19 @@ func runDaemon(cmd *cobra.Command) error {
 
 	if logger != nil {
 		logger.Info("daemon started", map[string]interface{}{"device": cfg.Device.Name})
+		// Add subscriptions to log inbound command/result messages for observability
+		cmdCh := node.Subscribe(core.MessageTypeCommand)
+		resCh := node.Subscribe(core.MessageTypeResult)
+		go func() {
+			for m := range cmdCh {
+				logger.Info("daemon: received command", map[string]interface{}{"id": m.ID, "from": m.Sender, "ttl": m.TTL, "cmd": m.Command})
+			}
+		}()
+		go func() {
+			for m := range resCh {
+				logger.Info("daemon: received result", map[string]interface{}{"id": m.ID, "from": m.Sender, "ttl": m.TTL})
+			}
+		}()
 	}
 
 	// Wait for termination signal (test seam)
