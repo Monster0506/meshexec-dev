@@ -379,7 +379,8 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 await Task.Delay(scanMs);
                 watcher.Stop();
                 Log("INFO", "central_broadcast stop", new Dictionary<string, object?> { { "writes", writeCount } });
-                return JsonDocument.Parse("{\"ok\":true}").RootElement;
+                var resp = JsonSerializer.Serialize(new { ok = true, data = new { writes = writeCount } });
+                return JsonDocument.Parse(resp).RootElement;
             }
         case "central_write_to":
             {
@@ -397,7 +398,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     {
                         try
                         {
-                            var s = (a.GetString() ?? string.Empty).Replace(":", "").Replace("-", "");
+                            var s = (a.GetString() ?? string.Empty).Trim().Replace(":", "").Replace("-", "");
                             if (ulong.TryParse(s, System.Globalization.NumberStyles.HexNumber, null, out var addr))
                             {
                                 var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(addr);
@@ -426,7 +427,8 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     }
                 }
                 Log("INFO", "central_write_to done", new Dictionary<string, object?> { { "writes", writes } });
-                return JsonDocument.Parse("{\"ok\":true}").RootElement;
+                var resp = JsonSerializer.Serialize(new { ok = true, data = new { writes = writes } });
+                return JsonDocument.Parse(resp).RootElement;
             }
         // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope
         default:

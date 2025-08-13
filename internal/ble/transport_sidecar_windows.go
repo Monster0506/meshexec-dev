@@ -279,33 +279,35 @@ func (t *SidecarTransport) CentralBroadcast(ctx context.Context, data []byte) er
 	if t.serviceUUID == "" || t.charUUID == "" {
 		return errors.New("missing service/characteristic UUID for central broadcast")
 	}
-    p := map[string]interface{}{
+	p := map[string]interface{}{
 		"service_uuid":        t.serviceUUID,
 		"characteristic_uuid": t.charUUID,
 		"value_b64":           base64.StdEncoding.EncodeToString(data),
-        "scan_ms":             6000,
+		"scan_ms":             6000,
 	}
-    // Best-effort broadcast via scan
-    if _, err := t.do("central_broadcast", p); err != nil {
-        return err
-    }
-    // If caller provides known addresses via env, attempt direct writes too
-    if addrs := os.Getenv("MESHEXEC_TARGET_ADDRS"); strings.TrimSpace(addrs) != "" {
-        parts := strings.Split(addrs, ",")
-        var list []string
-        for _, a := range parts {
-            a = strings.TrimSpace(a)
-            if a != "" { list = append(list, a) }
-        }
-        if len(list) > 0 {
-            p2 := map[string]interface{}{
-                "service_uuid":        t.serviceUUID,
-                "characteristic_uuid": t.charUUID,
-                "value_b64":           base64.StdEncoding.EncodeToString(data),
-                "addresses":           list,
-            }
-            _, _ = t.do("central_write_to", p2)
-        }
-    }
+	// Best-effort broadcast via scan
+	if _, err := t.do("central_broadcast", p); err != nil {
+		return err
+	}
+	// If caller provides known addresses via env, attempt direct writes too
+	if addrs := os.Getenv("MESHEXEC_TARGET_ADDRS"); strings.TrimSpace(addrs) != "" {
+		parts := strings.Split(addrs, ",")
+		var list []string
+		for _, a := range parts {
+			a = strings.TrimSpace(a)
+			if a != "" {
+				list = append(list, a)
+			}
+		}
+		if len(list) > 0 {
+			p2 := map[string]interface{}{
+				"service_uuid":        t.serviceUUID,
+				"characteristic_uuid": t.charUUID,
+				"value_b64":           base64.StdEncoding.EncodeToString(data),
+				"addresses":           list,
+			}
+			_, _ = t.do("central_write_to", p2)
+		}
+	}
 	return nil
 }
