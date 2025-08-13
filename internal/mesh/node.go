@@ -9,15 +9,13 @@ import (
 	"time"
 
 	core "github.com/monster0506/meshexec/internal"
-	"github.com/monster0506/meshexec/internal/ble"
-	"github.com/monster0506/meshexec/internal/logging"
 )
 
 // Node implements core.MeshNode, orchestrating BLE discovery/advertising
 // and providing a simple pub-sub for mesh messages (transport wiring TBD).
 type Node struct {
 	transport core.BLETransport
-	manager   *ble.Manager
+	manager   interface{}
 	cfg       *core.NetworkConfig
 	localPeer core.PeerInfo
 
@@ -40,10 +38,9 @@ type Node struct {
 
 // NewNode constructs a MeshNode from a BLE transport and network config.
 func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
-	logger := logging.NewLogger("info") // Default logger for mesh node
 	return &Node{
 		transport: transport,
-		manager:   ble.NewManager(transport, logger),
+		manager:   nil,
 		cfg:       cfg,
 		localPeer: local,
 		subs:      make(map[core.MessageType][]chan *core.MeshMessage),
@@ -53,11 +50,6 @@ func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.Pe
 
 // NewNodeFromConfig builds a native/sim transport using the BLE factory and returns a node.
 func NewNodeFromConfig(cfg *core.Config) (*Node, error) {
-	logger := logging.NewLogger("info") // Create logger for the factory
-	t, err := ble.NewWithLogger(&cfg.Network, logger)
-	if err != nil {
-		return nil, err
-	}
 	local := core.PeerInfo{
 		ID:      cfg.Device.Name,
 		Name:    cfg.Device.Name,
@@ -67,7 +59,7 @@ func NewNodeFromConfig(cfg *core.Config) (*Node, error) {
 		Arch:    cfg.Device.Arch,
 		Tags:    cfg.Device.Tags,
 	}
-	return NewNode(t, &cfg.Network, local), nil
+	return NewNode(nil, &cfg.Network, local), nil
 }
 
 // Start begins BLE advertising and discovery.
@@ -96,10 +88,7 @@ func (n *Node) Start(ctx context.Context) error {
 	}
 
 	// Start discovery
-	if err := n.manager.StartDiscovery(ctx); err != nil {
-		_ = n.Stop()
-		return err
-	}
+	// BLE manager disabled in TCP-only build
 
 	// Start BLE notification receiver if transport supports it
 	if sub, ok := n.transport.(interface {
@@ -168,7 +157,7 @@ func (n *Node) Stop() error {
 		n.rxCancel()
 		n.rxCancel = nil
 	}
-	n.manager.StopDiscovery()
+	// no-op: BLE manager disabled
 	return nil
 }
 
@@ -237,7 +226,7 @@ func (n *Node) Subscribe(msgType core.MessageType) <-chan *core.MeshMessage {
 
 // GetPeers returns the current discovered peers.
 func (n *Node) GetPeers() []core.PeerInfo {
-	return n.manager.ListPeers()
+	return nil
 }
 
 func (n *Node) publishLocal(msg *core.MeshMessage) {

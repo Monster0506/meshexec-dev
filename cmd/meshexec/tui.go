@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/monster0506/meshexec/internal/ble"
 	"github.com/monster0506/meshexec/internal/config"
+	"github.com/monster0506/meshexec/internal/discovery"
 	"github.com/monster0506/meshexec/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -33,49 +32,33 @@ var tuiCmd = &cobra.Command{
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
 		}
-		cfg, err := cfgMgr.Load()
-		if err != nil {
+		if _, err := cfgMgr.Load(); err != nil {
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
-		// Initialize BLE transport (no simulation unless explicitly allowed)
-		tr, err := ble.NewWithLogger(&cfg.Network, logger)
-		if err != nil {
-			return err
-		}
-		// Disallow simulated transport by default
-		if !tuiAllowSim {
-			if _, isSim := tr.(*ble.Transport); isSim {
-				return errors.New("no real BLE transport available (simulation disabled); ensure hardware/backend present or pass --allow-sim")
-			}
-		}
-
-		// Create BLE manager and start discovery
-		mgr := ble.NewManager(tr, logger)
+		// mDNS based peer listing for TUI
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		if err := mgr.StartDiscovery(ctx); err != nil {
-			return err
-		}
 		if logger != nil {
-			logger.Info("tui: discovery started", nil)
+			logger.Info("tui: mDNS discovery", nil)
 		}
 
 		// Subscribe to peer updates and push snapshots into the UI
 		subCtx, subCancel := context.WithCancel(ctx)
 		defer subCancel()
-		updates := mgr.Subscribe(subCtx)
 		go func() {
-			// Debounce bursts to reduce UI churn
-			var last time.Time
-			for range updates {
-				now := time.Now()
-				if now.Sub(last) < 200*time.Millisecond {
-					continue
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-subCtx.Done():
+					return
+				case <-ticker.C:
+					c, cc := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+					peers, _ := discovery.Discover(c, 1500*time.Millisecond)
+					cc()
+					ui.UpdatePeers(peers)
 				}
-				last = now
-				peers := mgr.ListPeers()
-				ui.UpdatePeers(peers)
 			}
 		}()
 
@@ -87,8 +70,9 @@ var tuiCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(tuiCmd)
 	tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: peers|results|overview")
-	tuiCmd.Flags().BoolVar(&tuiAllowSim, "allow-sim", false, "allow simulated BLE transport if native is unavailable")
+	// removed allow-sim; BLE disabled
 }
 
 var tuiView string
-var tuiAllowSim bool
+
+// BLE simulation flag removed

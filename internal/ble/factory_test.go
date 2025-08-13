@@ -1,3 +1,5 @@
+//go:build ble
+
 package ble
 
 import (

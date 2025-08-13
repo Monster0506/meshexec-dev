@@ -8,79 +8,83 @@ import (
 	"time"
 
 	"github.com/monster0506/meshexec/internal"
-	"github.com/monster0506/meshexec/internal/ble"
 	"github.com/monster0506/meshexec/internal/config"
+	"github.com/monster0506/meshexec/internal/discovery"
 	"github.com/spf13/cobra"
 )
 
 var (
-	bleNewWithLogger          = ble.NewWithLogger
 	configNewManagerWithLevel = config.NewManagerWithLevel
 )
 
 var joinCmd = &cobra.Command{
 	Use:   "join",
-	Short: "Join the mesh network",
+	Short: "Join the mesh network (mDNS stream)",
 	Run: func(cmd *cobra.Command, args []string) {
-		logLevel, _ := cmd.Root().PersistentFlags().GetString("log-level")
-		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
-		if verbose {
-			logLevel = "debug"
-		}
-		cfgMgr := configNewManagerWithLevel(logLevel)
-		cfgPath, _ := cmd.Root().PersistentFlags().GetString("config")
-		if cfgPath != "" {
-			cfgMgr.SetConfigPath(cfgPath)
-		}
-		cfg, err := cfgMgr.Load()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Initialize BLE
-		transport, err := bleNewWithLogger(&cfg.Network, logger)
-		if err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-		mgr := ble.NewManager(transport, logger)
-
-		// Try to advertise; Windows backend will return error (unsupported)
-		advCtx, advCancel := context.WithCancel(context.Background())
-		defer advCancel()
-		if err := transport.Advertise(advCtx, []byte("meshexec")); err != nil {
-			if logger != nil {
-				logger.Warn("Advertising not available; continuing with scanning only", map[string]interface{}{"error": err.Error()})
-			}
-		}
-
-		// Start discovery
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		if err := mgr.StartDiscovery(ctx); err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-
-		// Stream updates
-		updates := mgr.Subscribe(ctx)
+		_ = configNewManagerWithLevel // retain for possible future use
+		// Stream mDNS snapshots periodically
 		if logger != nil {
-			logger.Info("Joined mesh; streaming peer updates (Ctrl-C to exit)", nil)
-		} else {
-			fmt.Fprintln(os.Stderr, "Joined mesh; streaming peer updates (Ctrl-C to exit)")
+			logger.Info("Streaming mDNS discovery (Ctrl-C to exit)", nil)
 		}
-		for p := range updates {
-			fmt.Printf("peer: name=%s addr=%s rssi=%d connected=%v\n", p.Name, p.Address, p.SignalStrength, p.Connected)
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			if logger != nil {
+				logger.Debug("join: discovering peers", map[string]interface{}{"timeout_ms": 3000})
+			}
+			peers, _ := discovery.Discover(ctx, 3*time.Second)
+			cancel()
+			if logger != nil {
+				logger.Info("join: discovered peers", map[string]interface{}{"count": len(peers)})
+			}
+			fmt.Printf("Peers (%d):\n", len(peers))
+			for _, p := range peers {
+				fmt.Printf("- %s  %s  %s  %s\n", p.Address, p.Name, p.OS, p.Role)
+			}
+			time.Sleep(3 * time.Second)
+		}
+	},
+}
+
+var discoverCmd = &cobra.Command{
+	Use:   "discover",
+	Short: "Discover devices via mDNS",
+	Run: func(cmd *cobra.Command, args []string) {
+		timeout := time.Duration(statusTimeoutMs) * time.Millisecond
+		if timeout <= 0 {
+			timeout = 2000 * time.Millisecond
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if logger != nil {
+			logger.Debug("list: mDNS discover", map[string]interface{}{"timeout_ms": timeout.Milliseconds()})
+		}
+		peers, _ := discovery.Discover(ctx, timeout)
+		if logger != nil {
+			logger.Info("list: discovered peers", map[string]interface{}{"count": len(peers)})
+		}
+		if listJSON {
+			type out struct {
+				Peers []internal.PeerInfo `json:"peers"`
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(out{Peers: peers})
+			return
+		}
+		if len(peers) == 0 {
+			fmt.Println("No devices found")
+			return
+		}
+		fmt.Println("Devices found (mDNS):")
+		for _, p := range peers {
+			fmt.Printf("- %s  %s  %s  %s\n", p.Address, p.Name, p.OS, p.Role)
 		}
 	},
 }
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List nearby BLE devices",
+	Short: "List devices (mDNS)",
 	Run: func(cmd *cobra.Command, args []string) {
 		timeout := time.Duration(listTimeoutMs) * time.Millisecond
 		if timeout <= 0 {
@@ -97,30 +101,11 @@ var listCmd = &cobra.Command{
 		if cfgPath != "" {
 			cfgMgr.SetConfigPath(cfgPath)
 		}
-		cfg, err := cfgMgr.Load()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-			os.Exit(1)
-		}
-
-		transport, err := bleNewWithLogger(&cfg.Network, logger)
-		if err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-		mgr := ble.NewManager(transport, logger)
+		_, _ = cfgMgr.Load() // config not used in mDNS-only join
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		if err := mgr.StartDiscovery(ctx); err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-		<-ctx.Done()
-
-		peers := mgr.ListPeers()
+		peers, _ := discovery.Discover(ctx, timeout)
 		if listJSON {
 			type out struct {
 				Peers []internal.PeerInfo `json:"peers"`
@@ -136,7 +121,7 @@ var listCmd = &cobra.Command{
 		}
 		fmt.Println("Devices found:")
 		for _, p := range peers {
-			fmt.Printf("- %s  %s  RSSI=%d\n", p.Address, p.Name, p.SignalStrength)
+			fmt.Printf("- %s  %s  %s  %s\n", p.Address, p.Name, p.OS, p.Role)
 		}
 	},
 }
@@ -178,27 +163,11 @@ var statusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Initialize BLE and manager
-		transport, err := bleNewWithLogger(&cfg.Network, logger)
-		if err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-		mgr := ble.NewManager(transport, logger)
-
-		// Perform a brief discovery scan
+		// mDNS discovery only
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		if err := mgr.StartDiscovery(ctx); err != nil {
-			me := internal.MapNetworkError("scan", err)
-			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
-			os.Exit(1)
-		}
-		<-ctx.Done()
-
-		// Collect peers and apply optional time filter
-		peers := mgr.ListPeers()
+		peers, _ := discovery.Discover(ctx, timeout)
+		// Apply optional time filter
 		if !sinceCutoff.IsZero() {
 			filtered := make([]internal.PeerInfo, 0, len(peers))
 			for _, p := range peers {
@@ -212,10 +181,11 @@ var statusCmd = &cobra.Command{
 		// Build status object
 		status := internal.NetworkStatus{
 			LocalNode: internal.PeerInfo{
-				Name: cfg.Device.Name,
-				Role: cfg.Device.Role,
-				OS:   cfg.Device.OS,
-				Arch: cfg.Device.Arch,
+				Name:    cfg.Device.Name,
+				Role:    cfg.Device.Role,
+				OS:      cfg.Device.OS,
+				Arch:    cfg.Device.Arch,
+				Address: fmt.Sprintf(":%d", cfg.Network.TCPPort),
 			},
 			Peers:          peers,
 			Routes:         map[string][]string{},
@@ -269,6 +239,7 @@ func init() {
 	rootCmd.AddCommand(joinCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(discoverCmd)
 
 	// join flags (stubs)
 	joinCmd.Flags().BoolVar(&joinForeground, "foreground", false, "run in foreground and stream logs (stub)")
@@ -278,6 +249,10 @@ func init() {
 	// list flags
 	listCmd.Flags().BoolVar(&listJSON, "json", false, "output peers as JSON")
 	listCmd.Flags().IntVar(&listTimeoutMs, "timeout", 5000, "scan timeout in ms")
+
+	// discover flags reuse list/status flags
+	discoverCmd.Flags().BoolVar(&listJSON, "json", false, "output peers as JSON")
+	discoverCmd.Flags().IntVar(&statusTimeoutMs, "timeout", 2000, "discover timeout in ms")
 
 	// status flags
 	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output status as JSON")

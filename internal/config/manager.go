@@ -350,6 +350,7 @@ func (m *Manager) setDefaults() {
 	m.viper.SetDefault("network.connection_timeout", 5000)
 	m.viper.SetDefault("network.max_peers", 10)
 	m.viper.SetDefault("network.ttl", 5)
+	m.viper.SetDefault("network.tcp_port", 9876)
 
 	m.viper.SetDefault("safety.safe_mode", true)
 	m.viper.SetDefault("safety.dangerous_commands", []string{"rm -rf", "del /s", "format", "dd if="})

@@ -1,9 +1,10 @@
+//go:build ble
+
 package ble
 
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,11 @@ func New(cfg *core.NetworkConfig) (core.BLETransport, error) {
 }
 
 // NewWithLogger returns a BLETransport with logging support.
+func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, error) {
+	return nil, fmt.Errorf("BLE disabled in this build")
+}
+
+/*
 func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, error) {
 	if logger == nil {
 		logger = logging.NewLogger("info")
@@ -137,6 +143,7 @@ func NewWithLogger(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETra
 		return newSim(cfg, logger), nil
 	}
 }
+*/
 
 // getPlatform returns the current platform for logging
 func getPlatform() string {

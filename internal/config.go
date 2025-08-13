@@ -39,6 +39,7 @@ type NetworkConfig struct {
 	ConnectionTimeout  int    `toml:"connection_timeout" ini:"connection_timeout"`
 	MaxPeers           int    `toml:"max_peers" ini:"max_peers"`
 	TTL                int    `toml:"ttl" ini:"ttl"`
+	TCPPort            int    `toml:"tcp_port" ini:"tcp_port"`
 }
 
 // SafetyConfig represents safety-related configuration
@@ -90,6 +91,7 @@ func DefaultConfig() *Config {
 			ConnectionTimeout:  5000,
 			MaxPeers:           10,
 			TTL:                5,
+			TCPPort:            9876,
 		},
 		Safety: SafetyConfig{
 			SafeMode:          true,

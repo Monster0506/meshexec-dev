@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
 
 	core "github.com/monster0506/meshexec/internal"
 	"github.com/monster0506/meshexec/internal/config"
+	"github.com/monster0506/meshexec/internal/discovery"
 	"github.com/monster0506/meshexec/internal/executor"
-	"github.com/monster0506/meshexec/internal/mesh"
 	"github.com/monster0506/meshexec/internal/messages"
 	"github.com/spf13/cobra"
 )
@@ -33,11 +36,6 @@ var (
 // runMessageHook allows tests to inspect the constructed CommandMessage.
 // In production, this remains nil.
 var runMessageHook func(*core.CommandMessage)
-
-// newMeshNodeForRun enables tests to inject a stub mesh node; defaults to real builder
-var newMeshNodeForRun = func(cfg *core.Config) (core.MeshNode, error) {
-	return mesh.NewNodeFromConfig(cfg)
-}
 
 var runCmd = &cobra.Command{
 	Use:     "run [command] [args...]",
@@ -182,72 +180,135 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		// Non-dry-run: send over mesh and wait briefly for a result
-		node, err := newMeshNodeForRun(cfg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to initialize mesh: %v\n", err)
-			os.Exit(3)
+		// Non-dry-run: mDNS discover peers and send over TCP
+		if logger != nil {
+			logger.Debug("run: starting mDNS discovery", map[string]interface{}{"timeout_ms": 5000})
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		if err := node.Start(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "mesh start error: %v\n", err)
-			os.Exit(4)
-		}
-
-		// Subscribe for results before sending
-		resCh := node.Subscribe(core.MessageTypeResult)
-
-		if err := node.SendMessage(&msg.MeshMessage); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to send command: %v\n", err)
-			_ = node.Stop()
-			os.Exit(5)
+		dctx, dcancel := context.WithTimeout(context.Background(), 5*time.Second)
+		peers, derr := discovery.Discover(dctx, 5*time.Second)
+		dcancel()
+		if derr != nil {
+			if logger != nil {
+				logger.Warn("run: discovery error", map[string]interface{}{"error": derr.Error()})
+			}
 		}
 		if logger != nil {
-			logger.Info("run: command sent", map[string]interface{}{"id": msg.ID, "target": runTarget})
+			logger.Info("run: discovered peers", map[string]interface{}{"count": len(peers)})
 		}
-
-		// Wait for a single result or timeout
-		timeout := time.Duration(runTimeout) * time.Millisecond
-		if timeout <= 0 {
-			timeout = 5 * time.Second
+		if len(peers) == 0 {
+			fmt.Fprintln(os.Stderr, "No peers discovered via mDNS")
+			os.Exit(6)
 		}
-		select {
-		case rm := <-resCh:
-			if rm != nil {
-				// If payload contains the raw JSON, try to deserialize ResultMessage for rich output
-				printed := false
-				if len(rm.Payload) > 0 {
-					var full messages.MessageHandler
-					// Use handler to deserialize based on embedded type
-					if v, err := full.DeserializeMessage(rm.Payload); err == nil {
-						if res, ok := v.(*core.ResultMessage); ok {
-							r := res.Result
-							fmt.Printf("Result: status=%s code=%d device=%s\n", r.Status, r.ExitCode, r.Device)
-							if s := strings.TrimSpace(r.Stdout); s != "" {
-								fmt.Println("stdout:")
-								fmt.Println(s)
-							}
-							if s := strings.TrimSpace(r.Stderr); s != "" {
-								fmt.Println("stderr:")
-								fmt.Println(s)
-							}
-							printed = true
+		// Filter by basic target expression
+		selected := make([]core.PeerInfo, 0, len(peers))
+		if strings.TrimSpace(strings.ToLower(runTarget)) == "all" || runTarget == "" {
+			selected = peers
+		} else {
+			want := map[string]string{}
+			parts := strings.FieldsFunc(runTarget, func(r rune) bool { return r == '&' || r == '|' || r == ' ' })
+			for _, pr := range parts {
+				if eq := strings.IndexByte(pr, '='); eq > 0 {
+					k := strings.ToLower(strings.TrimSpace(pr[:eq]))
+					v := strings.Trim(strings.TrimSpace(pr[eq+1:]), "\"")
+					want[k] = v
+				}
+			}
+			for _, peer := range peers {
+				ok := true
+				for k, v := range want {
+					switch k {
+					case "name":
+						ok = ok && strings.EqualFold(peer.Name, v)
+					case "role":
+						ok = ok && strings.EqualFold(peer.Role, v)
+					case "os":
+						ok = ok && strings.EqualFold(peer.OS, v)
+					case "arch":
+						ok = ok && strings.EqualFold(peer.Arch, v)
+					default:
+						if tv, exists := peer.Tags[k]; exists {
+							ok = ok && strings.EqualFold(tv, v)
+						} else {
+							ok = false
 						}
 					}
+					if !ok {
+						break
+					}
 				}
-				if !printed {
-					fmt.Printf("Received a result message (id=%s, sender=%s)\n", rm.ID, rm.Sender)
+				if ok {
+					selected = append(selected, peer)
 				}
-			} else {
-				fmt.Println("Result channel closed without message")
 			}
-		case <-time.After(timeout):
-			fmt.Fprintln(os.Stderr, "Timed out waiting for result (command may still be executing)")
 		}
-
-		_ = node.Stop()
+		if logger != nil {
+			logger.Info("run: peers after target filter", map[string]interface{}{"count": len(selected), "target": runTarget})
+		}
+		if len(selected) == 0 {
+			fmt.Fprintln(os.Stderr, "No peers matched target expression")
+			os.Exit(7)
+		}
+		for _, p := range selected {
+			addr := p.Address
+			if !strings.Contains(addr, ":") {
+				addr = addr + fmt.Sprintf(":%d", cfg.Network.TCPPort)
+			}
+			if logger != nil {
+				logger.Debug("run: dialing peer", map[string]interface{}{"peer": p.Name, "addr": addr})
+			}
+			res, err := sendCommandTCP(addr, command, time.Duration(runTimeout)*time.Millisecond)
+			if err != nil {
+				if logger != nil {
+					logger.Warn("run: send failed", map[string]interface{}{"peer": p.Name, "addr": addr, "error": err.Error()})
+				}
+				fmt.Fprintf(os.Stderr, "send %s: %v\n", addr, err)
+				continue
+			}
+			if logger != nil {
+				logger.Info("run: got response", map[string]interface{}{"peer": p.Name, "status": res.Status, "code": res.ExitCode})
+			}
+			fmt.Printf("%s: status=%s code=%d\n", addr, res.Status, res.ExitCode)
+			if s := strings.TrimSpace(res.Stdout); s != "" {
+				fmt.Println("stdout:\n" + s)
+			}
+			if s := strings.TrimSpace(res.Stderr); s != "" {
+				fmt.Println("stderr:\n" + s)
+			}
+		}
 	},
+}
+
+func sendCommandTCP(addr, command string, timeout time.Duration) (*core.ExecutionResult, error) {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	d := net.Dialer{Timeout: 3 * time.Second}
+	conn, err := d.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	enc := json.NewEncoder(conn)
+	if err := enc.Encode(map[string]string{"cmd": command}); err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Ok     bool                  `json:"ok"`
+		Result *core.ExecutionResult `json:"result"`
+	}
+	dec := json.NewDecoder(bufio.NewReader(conn))
+	if err := dec.Decode(&resp); err != nil {
+		return nil, err
+	}
+	if !resp.Ok {
+		return nil, fmt.Errorf("remote error")
+	}
+	if resp.Result == nil {
+		r := &core.ExecutionResult{Status: "unknown"}
+		return r, nil
+	}
+	return resp.Result, nil
 }
 
 func init() {

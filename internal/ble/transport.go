@@ -4,6 +4,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"errors"
+	"fmt"
 	mrand "math/rand"
 	"net"
 	"os"
@@ -404,8 +405,12 @@ func (t *Transport) SendGATT(ctx context.Context, addr string, data []byte) erro
 
 // tryNewWinRT is provided by a Windows-specific file when built with the winrt tag.
 // The default here returns (nil, false, nil) meaning "not available".
+// tryNewWinRT is compiled but intentionally unused when BLE is disabled.
+// Keep signature to satisfy references behind build flags.
+//
+//nolint:unused
 func tryNewWinRT(cfg *core.NetworkConfig, logger *logging.Logger) (core.BLETransport, bool, error) {
-	return nil, false, nil
+	return nil, false, fmt.Errorf("winrt disabled")
 }
 
 // tryNewSidecar is provided by a Windows-specific file when built with sidecar support.
