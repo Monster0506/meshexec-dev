@@ -282,7 +282,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     {
                         var req2 = await e.GetRequestAsync();
                         var len = req2.Value?.Length ?? 0;
-                        Log("INFO", "gatt write request", new Dictionary<string, object?> { { "len", len }, { "session", e.Session.SessionId } });
+                        Log("INFO", "gatt write request", new Dictionary<string, object?> { { "len", len } });
                         if (req2.Value != null)
                         {
                             var bytes = new byte[req2.Value.Length];
@@ -335,7 +335,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 {
                     ScanningMode = BluetoothLEScanningMode.Active
                 };
-                var tcs = new TaskCompletionSource<bool>();
+                int writeCount = 0;
                 watcher.Received += async (s, e) =>
                 {
                     try
@@ -362,6 +362,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                                     status = await c.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithResponse);
                                 }
                                 Log("INFO", "central write", new Dictionary<string, object?> { { "status", status.ToString() }, { "len", data.Length }, { "addr", dev.BluetoothAddress } });
+                                if (status == GattCommunicationStatus.Success) { writeCount++; }
                             }
                         }
                     }
@@ -374,7 +375,7 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 watcher.Start();
                 await Task.Delay(scanMs);
                 watcher.Stop();
-                Log("INFO", "central_broadcast stop", null);
+                Log("INFO", "central_broadcast stop", new Dictionary<string, object?> { { "writes", writeCount } });
                 return JsonDocument.Parse("{\"ok\":true}").RootElement;
             }
         // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope
@@ -393,14 +394,14 @@ async Task ServeAsync(TcpClient client)
     using var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
 
     Interlocked.Increment(ref clientCount);
-    Log("INFO", "client connected", new Dictionary<string, object> { { "remote", c.Client.RemoteEndPoint?.ToString() ?? "" }, { "clients", clientCount } });
+    Log("INFO", "client connected", new Dictionary<string, object?> { { "remote", c.Client.RemoteEndPoint?.ToString() ?? "" }, { "clients", clientCount } });
     while (true)
     {
         var line = await reader.ReadLineAsync();
         if (line == null) break;
         try
         {
-            Log("DEBUG", "recv line", new Dictionary<string, object> { { "len", line.Length }, { "line", line } });
+            Log("DEBUG", "recv line", new Dictionary<string, object?> { { "len", line.Length }, { "line", line } });
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
             var action = root.GetProperty("action").GetString() ?? string.Empty;
@@ -420,7 +421,7 @@ async Task ServeAsync(TcpClient client)
             }
             var resp = await HandleAsync(root);
             var outLine = resp.GetRawText();
-            Log("DEBUG", "send line", new Dictionary<string, object> { { "len", outLine.Length }, { "line", outLine } });
+            Log("DEBUG", "send line", new Dictionary<string, object?> { { "len", outLine.Length }, { "line", outLine } });
             await writer.WriteLineAsync(outLine);
         }
         catch (Exception ex)
@@ -431,7 +432,7 @@ async Task ServeAsync(TcpClient client)
         }
     }
     Interlocked.Decrement(ref clientCount);
-    Log("INFO", "client disconnected", new Dictionary<string, object> { { "clients", clientCount } });
+    Log("INFO", "client disconnected", new Dictionary<string, object?> { { "clients", clientCount } });
 }
 
 // Periodic health log
