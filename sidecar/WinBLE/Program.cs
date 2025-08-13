@@ -336,12 +336,15 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                     ScanningMode = BluetoothLEScanningMode.Active
                 };
                 int writeCount = 0;
+                var attempted = new HashSet<ulong>();
                 watcher.Received += async (s, e) =>
                 {
                     try
                     {
-                        if (!e.Advertisement.ServiceUuids.Contains(svc)) return;
-                        Log("INFO", "central match", new Dictionary<string, object?> { { "addr", e.BluetoothAddress }, { "rssi", e.RawSignalStrengthInDBm } });
+                        bool hasSvc = e.Advertisement.ServiceUuids.Contains(svc);
+                        if (attempted.Contains(e.BluetoothAddress)) return;
+                        attempted.Add(e.BluetoothAddress);
+                        Log("INFO", hasSvc ? "central match" : "central probe", new Dictionary<string, object?> { { "addr", e.BluetoothAddress }, { "rssi", e.RawSignalStrengthInDBm }, { "hasSvc", hasSvc } });
                         var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(e.BluetoothAddress);
                         if (dev == null) return;
                         var result = await dev.GetGattServicesForUuidAsync(svc);

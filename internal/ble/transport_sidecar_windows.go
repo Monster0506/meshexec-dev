@@ -279,11 +279,11 @@ func (t *SidecarTransport) CentralBroadcast(ctx context.Context, data []byte) er
 	if t.serviceUUID == "" || t.charUUID == "" {
 		return errors.New("missing service/characteristic UUID for central broadcast")
 	}
-	p := map[string]interface{}{
+    p := map[string]interface{}{
 		"service_uuid":        t.serviceUUID,
 		"characteristic_uuid": t.charUUID,
 		"value_b64":           base64.StdEncoding.EncodeToString(data),
-		"scan_ms":             2000,
+        "scan_ms":             6000,
 	}
 	// Best-effort: make a short-lived request; sidecar performs scan/connect/write internally
 	if _, err := t.do("central_broadcast", p); err != nil {
