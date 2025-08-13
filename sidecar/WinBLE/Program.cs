@@ -381,6 +381,53 @@ async Task<JsonElement> HandleAsync(JsonElement req)
                 Log("INFO", "central_broadcast stop", new Dictionary<string, object?> { { "writes", writeCount } });
                 return JsonDocument.Parse("{\"ok\":true}").RootElement;
             }
+        case "central_write_to":
+            {
+                var p = req.GetProperty("params");
+                var svcUuid = p.GetProperty("service_uuid").GetString() ?? string.Empty;
+                var chrUuid = p.GetProperty("characteristic_uuid").GetString() ?? string.Empty;
+                var b64 = p.GetProperty("value_b64").GetString() ?? string.Empty;
+                if (!Guid.TryParse(svcUuid, out var svc) || !Guid.TryParse(chrUuid, out var chr))
+                    throw new Exception("invalid service/characteristic UUIDs");
+                var data = Convert.FromBase64String(b64);
+                var writes = 0;
+                if (p.TryGetProperty("addresses", out var addrs) && addrs.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var a in addrs.EnumerateArray())
+                    {
+                        try
+                        {
+                            var s = (a.GetString() ?? string.Empty).Replace(":", "").Replace("-", "");
+                            if (ulong.TryParse(s, System.Globalization.NumberStyles.HexNumber, null, out var addr))
+                            {
+                                var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(addr);
+                                if (dev == null) continue;
+                                var result = await dev.GetGattServicesForUuidAsync(svc);
+                                if (result.Status != GattCommunicationStatus.Success) continue;
+                                foreach (var service in result.Services)
+                                {
+                                    var chrs = await service.GetCharacteristicsForUuidAsync(chr);
+                                    if (chrs.Status != GattCommunicationStatus.Success) continue;
+                                    foreach (var c in chrs.Characteristics)
+                                    {
+                                        GattCommunicationStatus status;
+                                        try { status = await c.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithoutResponse); }
+                                        catch { status = await c.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithResponse); }
+                                        Log("INFO", "central write(addr)", new Dictionary<string, object?> { { "status", status.ToString() }, { "len", data.Length }, { "addr", addr } });
+                                        if (status == GattCommunicationStatus.Success) writes++;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log("ERROR", "central write(addr) failed", new Dictionary<string, object?> { { "error", ex.Message } });
+                        }
+                    }
+                }
+                Log("INFO", "central_write_to done", new Dictionary<string, object?> { { "writes", writes } });
+                return JsonDocument.Parse("{\"ok\":true}").RootElement;
+            }
         // gatt_subscribe / gatt_unsubscribe are handled in ServeAsync where writer is in scope
         default:
             throw new NotSupportedException($"unknown action {action}");
