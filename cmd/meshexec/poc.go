@@ -12,8 +12,8 @@ import (
 )
 
 var (
-    pocAddr string
-    pocText string
+	pocAddr string
+	pocText string
 )
 
 // poc-listen starts a simple TCP server that prints any received text and echoes an ACK
@@ -28,21 +28,21 @@ var pocListenCmd = &cobra.Command{
 		if logger != nil {
 			logger.Info("poc-listen: starting", map[string]interface{}{"addr": addr})
 		}
-        ln, err := net.Listen("tcp", addr)
+		ln, err := net.Listen("tcp", addr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "listen error: %v\n", err)
 			os.Exit(1)
 		}
-        defer func() { _ = ln.Close() }()
+		defer func() { _ = ln.Close() }()
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
-                fmt.Fprintf(os.Stderr, "accept error: %v\n", err)
-                time.Sleep(100 * time.Millisecond)
-                continue
+				fmt.Fprintf(os.Stderr, "accept error: %v\n", err)
+				time.Sleep(100 * time.Millisecond)
+				continue
 			}
 			go func(c net.Conn) {
-                defer func() { _ = c.Close() }()
+				defer func() { _ = c.Close() }()
 				r := bufio.NewReader(c)
 				line, _ := r.ReadString('\n')
 				if logger != nil {
@@ -78,7 +78,7 @@ var pocSendCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "dial error: %v\n", err)
 			os.Exit(3)
 		}
-        defer func() { _ = conn.Close() }()
+		defer func() { _ = conn.Close() }()
 		if _, err := io.WriteString(conn, text+"\n"); err != nil {
 			fmt.Fprintf(os.Stderr, "write error: %v\n", err)
 			os.Exit(4)
