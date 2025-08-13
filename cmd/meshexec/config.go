@@ -44,6 +44,7 @@ var configShowCmd = &cobra.Command{
 		fmt.Printf("Device Role: %s\n", cfg.Device.Role)
 		fmt.Printf("Device OS: %s\n", cfg.Device.OS)
 		fmt.Printf("Device Arch: %s\n", cfg.Device.Arch)
+		fmt.Printf("Network TCP Port: %d\n", cfg.Network.TCPPort)
 		fmt.Printf("Network TTL: %d\n", cfg.Network.TTL)
 		fmt.Printf("Network Max Peers: %d\n", cfg.Network.MaxPeers)
 		fmt.Printf("Safety Mode: %t\n", cfg.Safety.SafeMode)
