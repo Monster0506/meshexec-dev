@@ -107,12 +107,7 @@ var runCmd = &cobra.Command{
 			}
 		}
 
-		// Target evaluator integration pending – provide a placeholder message
-		if logger != nil {
-			logger.Info("Target evaluator integration not yet wired to CLI; proceeding with provided expression", map[string]interface{}{
-				"target": runTarget,
-			})
-		}
+        // CLI performs basic target filtering below
 
 		// Create a message to represent what would be sent
 		mh := messages.NewMessageHandler()
