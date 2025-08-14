@@ -29,7 +29,7 @@ var (
 
 var smokeCmd = &cobra.Command{
 	Use:    "smoke",
-	Short:  "Run a local end-to-end smoke test (requires WinBLE sidecar on Windows)",
+    Short:  "Run a local end-to-end smoke test",
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Configure logging
@@ -51,21 +51,9 @@ var smokeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Hint transport implementation
-		impl := smokeImplHint
-		if impl == "" {
-			if runtime.GOOS == "windows" {
-				impl = "sidecar"
-			} else {
-				impl = "sim"
-			}
-		}
-		_ = os.Setenv("MESHEXEC_BLE_IMPL", impl)
-		if logger != nil {
-			logger.Info("smoke: using BLE implementation", map[string]interface{}{"impl": impl})
-		}
+        _ = runtime.GOOS // no BLE implementation needed
 
-		// Build mesh node
+        // Build mesh node (local-only)
 		node, err := mesh.NewNodeFromConfig(cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create mesh node: %v\n", err)
@@ -101,7 +89,7 @@ var smokeCmd = &cobra.Command{
 		resCh := node.Subscribe(core.MessageTypeResult)
 
 		// Create and send the command message
-		mh := messages.NewMessageHandlerWithLevel(logLevel)
+        mh := messages.NewMessageHandlerWithLevel(logLevel)
 		if smokeTarget == "" {
 			smokeTarget = "all"
 		}
@@ -166,7 +154,7 @@ func init() {
 	smokeCmd.Flags().StringVar(&smokeCmdString, "command", "echo smoke", "command to execute on this node during the smoke test")
 	smokeCmd.Flags().StringVar(&smokeTarget, "target", "all", "target expression for the smoke test")
 	smokeCmd.Flags().IntVar(&smokeTimeoutMs, "timeout", 5000, "timeout in milliseconds to wait for a result")
-	smokeCmd.Flags().StringVar(&smokeImplHint, "ble-impl", "", "hint BLE implementation: sidecar|sim|native (default: sidecar on Windows, sim otherwise)")
+    // removed BLE impl hint
 
 	rootCmd.AddCommand(smokeCmd)
 }
