@@ -72,10 +72,10 @@ func (n *Node) Start(ctx context.Context) error {
 	n.started = true
 	n.startedMu.Unlock()
 
-    // In TCP-only builds, transport is nil; treat Start as a no-op
-    if n.transport == nil {
-        return nil
-    }
+	// In TCP-only builds, transport is nil; treat Start as a no-op
+	if n.transport == nil {
+		return nil
+	}
 
 	// Try to create GATT service; if unsupported on this platform/transport, continue without it
 	if _, err := n.transport.CreateGATTService(); err != nil {
@@ -95,7 +95,7 @@ func (n *Node) Start(ctx context.Context) error {
 	// Start discovery
 	// BLE manager disabled in TCP-only build
 
-    // Start BLE notification receiver if transport supports it
+	// Start BLE notification receiver if transport supports it
 	if sub, ok := n.transport.(interface {
 		SubscribeWriteNotifications(ctx context.Context) (<-chan []byte, func(), error)
 	}); ok {

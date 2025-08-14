@@ -182,6 +182,7 @@ var runCmd = &cobra.Command{
 
 		// Non-dry-run: mDNS discover peers and send over TCP
 		if logger != nil {
+			discovery.SetLogger(logger)
 			logger.Debug("run: starting mDNS discovery", map[string]interface{}{"timeout_ms": 5000})
 		}
 		dctx, dcancel := context.WithTimeout(context.Background(), 5*time.Second)

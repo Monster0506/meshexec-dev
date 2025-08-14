@@ -67,7 +67,8 @@ func (m *Manager) Load() (*internal.Config, error) {
 				return nil, fmt.Errorf("failed to read config file: %w", err)
 			}
 
-			var config internal.Config
+			// Start from defaults and overlay file values so missing fields keep defaults
+			config := *internal.DefaultConfig()
 			if err := toml.Unmarshal(data, &config); err != nil {
 				m.logger.Error("Failed to unmarshal config", err, map[string]interface{}{
 					"path": m.configPath,
@@ -122,7 +123,8 @@ func (m *Manager) Load() (*internal.Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var config internal.Config
+	// Start from defaults and overlay file values so missing fields keep defaults
+	config := *internal.DefaultConfig()
 	if err := toml.Unmarshal(data, &config); err != nil {
 		m.logger.Error("Failed to unmarshal config", err, map[string]interface{}{
 			"path": configFile,

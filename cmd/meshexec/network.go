@@ -29,6 +29,9 @@ var joinCmd = &cobra.Command{
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			if logger != nil {
+				discovery.SetLogger(logger)
+			}
+			if logger != nil {
 				logger.Debug("join: discovering peers", map[string]interface{}{"timeout_ms": 3000})
 			}
 			peers, _ := discovery.Discover(ctx, 3*time.Second)
@@ -54,6 +57,9 @@ var discoverCmd = &cobra.Command{
 			timeout = 2000 * time.Millisecond
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		if logger != nil {
+			discovery.SetLogger(logger)
+		}
 		defer cancel()
 		if logger != nil {
 			logger.Debug("list: mDNS discover", map[string]interface{}{"timeout_ms": timeout.Milliseconds()})

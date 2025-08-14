@@ -12,6 +12,16 @@ import (
 
 const serviceType = "_meshexec._tcp"
 
+// package logger (default disabled); can be set via SetLogger
+var pkgLogger *logging.Logger = logging.NewLogger("none")
+
+// SetLogger sets discovery package logger
+func SetLogger(l *logging.Logger) {
+	if l != nil {
+		pkgLogger = l
+	}
+}
+
 // Advertiser wraps a zeroconf server
 type Advertiser struct {
 	server *zeroconf.Server
@@ -27,13 +37,20 @@ func StartAdvertiser(instance string, port int, meta map[string]string) (*Advert
 	for k, v := range meta {
 		txt = append(txt, fmt.Sprintf("%s=%s", k, v))
 	}
+	if pkgLogger != nil {
+		pkgLogger.Debug("mdns: registering service", map[string]interface{}{"instance": instance, "port": port, "txt_len": len(txt)})
+	}
 	srv, err := zeroconf.Register(instance, serviceType, "local.", port, txt, nil)
 	if err != nil {
+		if pkgLogger != nil {
+			pkgLogger.Warn("mdns: register failed", map[string]interface{}{"error": err.Error()})
+		}
 		return nil, err
 	}
-	lg := logging.NewLogger("none")
-	lg.Debug("mdns: advertiser started", map[string]interface{}{"instance": instance, "port": port, "meta_keys": len(meta)})
-	return &Advertiser{server: srv, logger: lg}, nil
+	if pkgLogger != nil {
+		pkgLogger.Debug("mdns: advertiser started", map[string]interface{}{"instance": instance, "port": port, "meta_keys": len(meta)})
+	}
+	return &Advertiser{server: srv, logger: pkgLogger}, nil
 }
 
 // Stop stops the advertiser
@@ -48,9 +65,15 @@ func (a *Advertiser) Stop() {
 
 // Discover finds peers advertising the service within the timeout
 func Discover(ctx context.Context, timeout time.Duration) ([]core.PeerInfo, error) {
-	lg := logging.NewLogger("none")
+	lg := pkgLogger
+	if lg != nil {
+		lg.Debug("mdns: discover begin", map[string]interface{}{"timeout_ms": timeout.Milliseconds(), "service": serviceType})
+	}
 	r, err := zeroconf.NewResolver(nil)
 	if err != nil {
+		if lg != nil {
+			lg.Warn("mdns: resolver create failed", map[string]interface{}{"error": err.Error()})
+		}
 		return nil, err
 	}
 	entries := make(chan *zeroconf.ServiceEntry, 32)
@@ -78,10 +101,19 @@ func Discover(ctx context.Context, timeout time.Duration) ([]core.PeerInfo, erro
 				LastSeen: time.Now(),
 			})
 		}
+		if lg != nil {
+			lg.Debug("mdns: entries channel closed", nil)
+		}
 	}()
 	qctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	if lg != nil {
+		lg.Debug("mdns: browse start", nil)
+	}
 	if err := r.Browse(qctx, serviceType, "local.", entries); err != nil {
+		if lg != nil {
+			lg.Warn("mdns: browse failed", map[string]interface{}{"error": err.Error()})
+		}
 		return nil, err
 	}
 	<-qctx.Done()

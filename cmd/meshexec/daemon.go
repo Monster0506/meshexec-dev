@@ -121,6 +121,10 @@ func runDaemon(cmd *cobra.Command) error {
 		}()
 		// Start simple TCP listener for POC/discovery port and mDNS advertise
 		go func(port int) {
+			// Normalize port; 0 means ephemeral. We'll advertise the actual bound port below.
+			if port < 0 {
+				port = 0
+			}
 			addr := fmt.Sprintf(":%d", port)
 			if logger != nil {
 				logger.Info("daemon: starting tcp listener", map[string]interface{}{"addr": addr})
@@ -132,11 +136,16 @@ func runDaemon(cmd *cobra.Command) error {
 				}
 				return
 			}
+			// Resolve actual port in case of :0
+			actualPort := port
+			if ta, ok := ln.Addr().(*net.TCPAddr); ok {
+				actualPort = ta.Port
+			}
 			if logger != nil {
-				logger.Info("daemon: tcp listener ready", map[string]interface{}{"addr": addr})
+				logger.Info("daemon: tcp listener ready", map[string]interface{}{"addr": ln.Addr().String(), "port": actualPort})
 			}
 			// mDNS advertise
-			adv, err := discovery.StartAdvertiser(cfg.Device.Name, port, map[string]string{
+			adv, err := discovery.StartAdvertiser(cfg.Device.Name, actualPort, map[string]string{
 				"role": cfg.Device.Role,
 				"os":   cfg.Device.OS,
 				"arch": cfg.Device.Arch,
