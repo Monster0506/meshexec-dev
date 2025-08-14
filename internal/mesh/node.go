@@ -3,7 +3,6 @@ package mesh
 import (
 	"context"
 	"crypto/md5"
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -14,7 +13,7 @@ import (
 // Node implements core.MeshNode, orchestrating BLE discovery/advertising
 // and providing a simple pub-sub for mesh messages (transport wiring TBD).
 type Node struct {
-	transport core.BLETransport
+	transport interface{}
 	manager   interface{}
 	cfg       *core.NetworkConfig
 	localPeer core.PeerInfo
@@ -37,7 +36,7 @@ type Node struct {
 }
 
 // NewNode constructs a MeshNode from a BLE transport and network config.
-func NewNode(transport core.BLETransport, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
+func NewNode(transport interface{}, cfg *core.NetworkConfig, local core.PeerInfo) *Node {
 	return &Node{
 		transport: transport,
 		manager:   nil,
@@ -72,75 +71,6 @@ func (n *Node) Start(ctx context.Context) error {
 	n.started = true
 	n.startedMu.Unlock()
 
-	// In TCP-only builds, transport is nil; treat Start as a no-op
-	if n.transport == nil {
-		return nil
-	}
-
-	// Try to create GATT service; if unsupported on this platform/transport, continue without it
-	if _, err := n.transport.CreateGATTService(); err != nil {
-		// proceed without GATT service (e.g., Windows central-only path)
-		_ = err
-	}
-
-	// Start advertising in a cancellable context
-	advCtx, advCancel := context.WithCancel(context.Background())
-	n.advCancel = advCancel
-	// Use a minimal serviceData marker; future: encode discovery metadata
-	if err := n.transport.Advertise(advCtx, []byte("meshexec")); err != nil {
-		// proceed with scanning only when advertising is unavailable
-		advCancel()
-	}
-
-	// Start discovery
-	// BLE manager disabled in TCP-only build
-
-	// Start BLE notification receiver if transport supports it
-	if sub, ok := n.transport.(interface {
-		SubscribeWriteNotifications(ctx context.Context) (<-chan []byte, func(), error)
-	}); ok {
-		rxCtx, rxCancel := context.WithCancel(context.Background())
-		n.rxCancel = rxCancel
-		go func() {
-			backoff := time.Millisecond * 200
-			for {
-				ch, unsub, err := sub.SubscribeWriteNotifications(rxCtx)
-				if err != nil {
-					time.Sleep(backoff)
-					if backoff < 5*time.Second {
-						backoff *= 2
-					}
-					continue
-				}
-				backoff = 200 * time.Millisecond
-				for {
-					select {
-					case <-rxCtx.Done():
-						unsub()
-						return
-					case b, ok := <-ch:
-						if !ok {
-							// subscribe loop ended; resubscribe
-							unsub()
-							goto RESUB
-						}
-						if full := n.tryReassemble(b); full != nil {
-							var m core.MeshMessage
-							if err := json.Unmarshal(full, &m); err == nil {
-								// Preserve raw JSON payload so subscribers can deserialize full message (e.g., results)
-								m.Payload = append([]byte(nil), full...)
-								n.publishLocal(&m)
-							}
-						}
-					}
-				}
-			RESUB:
-				// loop to resubscribe
-				continue
-			}
-		}()
-	}
-
 	return nil
 }
 
@@ -162,7 +92,6 @@ func (n *Node) Stop() error {
 		n.rxCancel()
 		n.rxCancel = nil
 	}
-	// no-op: BLE manager disabled
 	return nil
 }
 
@@ -184,39 +113,6 @@ func (n *Node) SendMessage(msg *core.MeshMessage) error {
 		}
 	}
 
-	// Attempt BLE send via transport if supported
-	b, err := json.Marshal(msg)
-	if err == nil {
-		mtu := 185
-		if m, ok := n.transport.(interface{ EffectiveMTU() int }); ok {
-			if v := m.EffectiveMTU(); v > 0 {
-				mtu = v
-			}
-		}
-		frames := n.buildFramesWithMTU(msg.ID, b, mtu)
-
-		// Use notifications when available (peripheral role)
-		if sender, ok := n.transport.(interface {
-			SendNotification(ctx context.Context, data []byte) error
-		}); ok {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			for _, fr := range frames {
-				_ = sender.SendNotification(ctx, fr)
-			}
-			cancel()
-		}
-
-		// Use central broadcast when available (central role) to push frames to peers
-		if broadcaster, ok := n.transport.(interface {
-			CentralBroadcast(ctx context.Context, data []byte) error
-		}); ok {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			for _, fr := range frames {
-				_ = broadcaster.CentralBroadcast(ctx, fr)
-			}
-			cancel()
-		}
-	}
 	return nil
 }
 
@@ -232,18 +128,6 @@ func (n *Node) Subscribe(msgType core.MessageType) <-chan *core.MeshMessage {
 // GetPeers returns the current discovered peers.
 func (n *Node) GetPeers() []core.PeerInfo {
 	return nil
-}
-
-func (n *Node) publishLocal(msg *core.MeshMessage) {
-	n.subsMu.RLock()
-	subs := append([]chan *core.MeshMessage(nil), n.subs[msg.Type]...)
-	n.subsMu.RUnlock()
-	for _, ch := range subs {
-		select {
-		case ch <- msg:
-		default:
-		}
-	}
 }
 
 // --- Fragmentation/Reassembly helpers ---

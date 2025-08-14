@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// MeshNode interface handles Bluetooth LE communication, message routing, and network topology management
+// MeshNode interface handles message routing and subscriptions
 type MeshNode interface {
 	Start(ctx context.Context) error
 	Stop() error
@@ -13,13 +13,7 @@ type MeshNode interface {
 	GetPeers() []PeerInfo
 }
 
-// BLETransport interface handles low-level Bluetooth LE operations
-type BLETransport interface {
-	Advertise(ctx context.Context, serviceData []byte) error
-	Scan(ctx context.Context) (<-chan *Advertisement, error)
-	Connect(ctx context.Context, addr string) (*Connection, error)
-	CreateGATTService() (*GATTService, error)
-}
+// (no BLE transport in TCP/mDNS builds)
 
 // Agent interface is the core service that processes commands, manages execution, and handles security
 type Agent interface {

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	core "github.com/monster0506/meshexec/internal"
-	"github.com/monster0506/meshexec/internal/ble"
 	"github.com/monster0506/meshexec/internal/logging"
 	"github.com/monster0506/meshexec/internal/mesh"
 	"github.com/monster0506/meshexec/internal/messages"
@@ -28,9 +27,8 @@ func TestAgent_Integration_EndToEnd_CommandToResult(t *testing.T) {
 	// Set a deterministic local device
 	device := core.DeviceInfo{Name: "dev-int", OS: "windows", Arch: "amd64", Role: "worker"}
 
-	// Mesh node with simulated BLE transport
-	transport := ble.NewTransportWithLogger(logger)
-	node := mesh.NewNode(transport, &cfg.Network, core.PeerInfo{ID: device.Name, Name: device.Name})
+	// Mesh node without BLE transport (local subscriptions only)
+	node := mesh.NewNode(nil, &cfg.Network, core.PeerInfo{ID: device.Name, Name: device.Name})
 
 	// Agent wired to the node
 	tgt := targeting.NewEvaluatorWithLevel("none")
@@ -83,8 +81,7 @@ func TestAgent_Integration_TargetMismatch_NoResult(t *testing.T) {
 	cfg := core.DefaultConfig()
 
 	device := core.DeviceInfo{Name: "dev-int2", OS: "windows", Arch: "amd64", Role: "worker"}
-	transport := ble.NewTransportWithLogger(logger)
-	node := mesh.NewNode(transport, &cfg.Network, core.PeerInfo{ID: device.Name, Name: device.Name})
+	node := mesh.NewNode(nil, &cfg.Network, core.PeerInfo{ID: device.Name, Name: device.Name})
 
 	tgt := targeting.NewEvaluatorWithLevel("none")
 	ag := New(node, nil, mockExecutorIntegration{}, tgt, device, logger)

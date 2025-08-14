@@ -43,24 +43,13 @@ func TestRunFlags_ParsingOnly(t *testing.T) {
 		"--workdir", "/tmp",
 		"--timeout", "123",
 		"--safe-mode",
-		"--format", "json",
-		"--encrypt",
-		"--no-sign",
-		"--sync",
-		"--at", "03:00",
-		"--env", "FOO=1",
-		"--env", "BAR=two",
-		"--stdin-file", "./input.txt",
 		"--", "echo", "hello",
 	)
 	if runTarget != "os=linux" || !runDryRun || runWorkDir != "/tmp" || runTimeout != 123 {
 		t.Fatalf("unexpected run flags parsed: target=%q dry=%v wd=%q timeout=%d", runTarget, runDryRun, runWorkDir, runTimeout)
 	}
-	if !runSafeMode || !runEncrypt || !runNoSign || runFormat != "json" || !runSync || runAt != "03:00" {
-		t.Fatalf("unexpected safety/output/schedule flags: safe=%v enc=%v nosign=%v fmt=%q sync=%v at=%q", runSafeMode, runEncrypt, runNoSign, runFormat, runSync, runAt)
-	}
-	if len(runEnv) != 2 || runEnv[0] != "FOO=1" || runEnv[1] != "BAR=two" || runStdinFile != "./input.txt" {
-		t.Fatalf("unexpected env/stdin flags: env=%v stdin=%q", runEnv, runStdinFile)
+	if !runSafeMode {
+		t.Fatalf("expected safe-mode true")
 	}
 }
 
@@ -75,10 +64,6 @@ func TestRun_Niceties_PopulateMessage(t *testing.T) {
 		"run",
 		"-t", "robot && zone=alpha",
 		"--dry-run",
-		"--env", "FOO=1",
-		"--env", "BAR=two",
-		"--stdin-file", "in.txt",
-		"--at", "03:00",
 		"--", "echo",
 	)
 	if got == nil {
@@ -87,16 +72,7 @@ func TestRun_Niceties_PopulateMessage(t *testing.T) {
 	if got.TargetExpr == "" {
 		t.Fatalf("expected TargetExpr populated")
 	}
-	if got.Env == nil || got.Env["FOO"] != "1" || got.Env["BAR"] != "two" {
-		t.Fatalf("unexpected env map: %+v", got.Env)
-	}
-	if got.StdinRef != "in.txt" {
-		t.Fatalf("expected stdin ref set, got %q", got.StdinRef)
-	}
-	// ScheduledAt may or may not parse depending on test time; just ensure field exists (0 ok)
-	if got.ScheduledAt < 0 {
-		t.Fatalf("scheduled_at should be >= 0, got %d", got.ScheduledAt)
-	}
+	// no env/stdin/schedule flags anymore
 }
 
 func TestTUIFlags_ViewParsing(t *testing.T) {

@@ -145,34 +145,7 @@ type RunOptions struct {
 	SafeMode bool   `json:"safe_mode"`
 }
 
-// Advertisement represents a Bluetooth LE advertisement
-type Advertisement struct {
-	Address     string            `json:"address"`
-	Name        string            `json:"name"`
-	ServiceData map[string][]byte `json:"service_data"`
-	RSSI        int               `json:"rssi"`
-	Timestamp   time.Time         `json:"timestamp"`
-}
-
-// Connection represents a Bluetooth LE connection
-type Connection struct {
-	Address   string `json:"address"`
-	MTU       int    `json:"mtu"`
-	Connected bool   `json:"connected"`
-}
-
-// GATTService represents a GATT service
-type GATTService struct {
-	UUID            string               `json:"uuid"`
-	Characteristics []GATTCharacteristic `json:"characteristics"`
-}
-
-// GATTCharacteristic represents a GATT characteristic
-type GATTCharacteristic struct {
-	UUID     string `json:"uuid"`
-	Value    []byte `json:"value"`
-	Writable bool   `json:"writable"`
-}
+// (BLE structs removed in TCP/mDNS builds)
 
 // ErrorType represents the type of error
 type ErrorType string

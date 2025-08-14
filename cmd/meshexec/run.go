@@ -19,18 +19,11 @@ import (
 )
 
 var (
-	runTarget    string
-	runDryRun    bool
-	runWorkDir   string
-	runTimeout   int
-	runSafeMode  bool
-	runNoSign    bool
-	runEncrypt   bool
-	runFormat    string
-	runSync      bool
-	runAt        string
-	runEnv       []string
-	runStdinFile string
+	runTarget   string
+	runDryRun   bool
+	runWorkDir  string
+	runTimeout  int
+	runSafeMode bool
 )
 
 // runMessageHook allows tests to inspect the constructed CommandMessage.
@@ -73,11 +66,7 @@ var runCmd = &cobra.Command{
 
 		// Log invocation
 		if logger != nil {
-			logger.Info("run: starting command dispatch", map[string]interface{}{
-				"target": runTarget, "dry_run": runDryRun, "workdir": runWorkDir, "timeout_ms": runTimeout,
-				"safe_mode": runSafeMode, "no_sign": runNoSign, "encrypt": runEncrypt, "format": runFormat,
-				"sync": runSync, "at": runAt, "env_count": len(runEnv), "stdin_file": runStdinFile,
-			})
+			logger.Info("run: starting command dispatch", map[string]interface{}{"target": runTarget, "dry_run": runDryRun, "workdir": runWorkDir, "timeout_ms": runTimeout, "safe_mode": runSafeMode})
 		}
 
 		// Build the command and arguments
@@ -107,41 +96,14 @@ var runCmd = &cobra.Command{
 			}
 		}
 
-        // CLI performs basic target filtering below
+		// CLI performs basic target filtering below
 
 		// Create a message to represent what would be sent
 		mh := messages.NewMessageHandler()
 		msg := mh.CreateCommandMessage(command, cmdArgs, []string{runTarget}, cfg.Device.Name, runWorkDir, runTimeout)
 		// Fill niceties when present (schema supports omitempty)
 		msg.TargetExpr = runTarget
-		if len(runEnv) > 0 {
-			msg.Env = make(map[string]string, len(runEnv))
-			for _, kv := range runEnv {
-				if kv == "" {
-					continue
-				}
-				if eq := strings.IndexByte(kv, '='); eq > 0 {
-					k := kv[:eq]
-					v := kv[eq+1:]
-					msg.Env[k] = v
-				}
-			}
-		}
-		if runAt != "" {
-			// Defer parsing to backend; leave as string in CLI, but also store planned epoch if parseable
-			if d, err := time.Parse("15:04", runAt); err == nil {
-				// Today at HH:MM; backend may reinterpret
-				now := time.Now()
-				when := time.Date(now.Year(), now.Month(), now.Day(), d.Hour(), d.Minute(), 0, 0, now.Location())
-				if when.Before(now) {
-					when = when.Add(24 * time.Hour)
-				}
-				msg.ScheduledAt = when.Unix()
-			}
-		}
-		if runStdinFile != "" {
-			msg.StdinRef = runStdinFile
-		}
+		// note: env/at/stdin-file options removed
 
 		if runMessageHook != nil {
 			runMessageHook(msg)
@@ -160,23 +122,7 @@ var runCmd = &cobra.Command{
 			}
 			fmt.Printf("  Timeout: %dms\n", runTimeout)
 			fmt.Printf("  Safe   : %t\n", runSafeMode)
-			fmt.Printf("  Sign   : %s\n", map[bool]string{true: "disabled", false: "enabled"}[runNoSign])
-			fmt.Printf("  Encrypt: %t\n", runEncrypt)
-			if runSync {
-				fmt.Printf("  Sync   : %t\n", runSync)
-			}
-			if runAt != "" {
-				fmt.Printf("  At     : %s\n", runAt)
-			}
-			if len(runEnv) > 0 {
-				fmt.Printf("  Env    : %s\n", strings.Join(runEnv, ", "))
-			}
-			if runStdinFile != "" {
-				fmt.Printf("  Stdin  : %s\n", runStdinFile)
-			}
-			if runFormat != "" {
-				fmt.Printf("  Format : %s\n", runFormat)
-			}
+			// removed unused flags output
 			fmt.Printf("  Msg ID : %s\n", msg.ID)
 			if logger != nil {
 				logger.Info("run: dry-run complete", map[string]interface{}{"msg_id": msg.ID})
@@ -321,13 +267,6 @@ func init() {
 	runCmd.Flags().StringVarP(&runWorkDir, "workdir", "w", "", "working directory for command execution")
 	runCmd.Flags().IntVarP(&runTimeout, "timeout", "T", 30000, "command timeout in milliseconds")
 	runCmd.Flags().BoolVar(&runSafeMode, "safe-mode", false, "enable safety filters for dangerous commands (stub)")
-	runCmd.Flags().BoolVar(&runNoSign, "no-sign", false, "do not sign messages (stub)")
-	runCmd.Flags().BoolVar(&runEncrypt, "encrypt", false, "encrypt command payloads (stub)")
-	runCmd.Flags().StringVar(&runFormat, "format", "", "output format for results: text|json (stub)")
-	runCmd.Flags().BoolVar(&runSync, "sync", false, "ensure synchronized execution start across targets (stub)")
-	runCmd.Flags().StringVar(&runAt, "at", "", "schedule execution at a specific time (e.g., '03:00' or '+5m') (stub)")
-	runCmd.Flags().StringArrayVar(&runEnv, "env", nil, "environment variables in KEY=VAL form (repeatable) (stub)")
-	runCmd.Flags().StringVar(&runStdinFile, "stdin-file", "", "file path to send as stdin to the command (stub)")
 
 	rootCmd.AddCommand(runCmd)
 }

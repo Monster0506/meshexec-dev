@@ -8,33 +8,11 @@ import (
 	core "github.com/monster0506/meshexec/internal"
 )
 
-// stubTransport implements core.BLETransport minimally for tests
-type stubTransport struct{}
-
-func (s stubTransport) Advertise(ctx context.Context, serviceData []byte) error { return nil }
-func (s stubTransport) Scan(ctx context.Context) (<-chan *core.Advertisement, error) {
-	ch := make(chan *core.Advertisement)
-	close(ch)
-	return ch, nil
-}
-func (s stubTransport) Connect(ctx context.Context, addr string) (*core.Connection, error) {
-	return &core.Connection{Address: addr, MTU: 185, Connected: true}, nil
-}
-func (s stubTransport) CreateGATTService() (*core.GATTService, error) {
-	return &core.GATTService{UUID: "x"}, nil
-}
-
-// Implement SendNotification/SubscribeWriteNotifications for fragmentation E2E test
-func (s stubTransport) SendNotification(ctx context.Context, data []byte) error { return nil }
-func (s stubTransport) SubscribeWriteNotifications(ctx context.Context) (<-chan []byte, func(), error) {
-	ch := make(chan []byte)
-	cancel := func() { close(ch) }
-	return ch, cancel, nil
-}
+// stub transport removed; Node tests operate locally without transport
 
 func TestNode_StartStop_SubscribeAndSend(t *testing.T) {
 	cfg := core.DefaultConfig()
-	n := NewNode(stubTransport{}, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
+	n := NewNode(nil, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -64,7 +42,7 @@ func TestNode_StartStop_SubscribeAndSend(t *testing.T) {
 // Fragmentation framing unit tests (local only; transport not used)
 func TestNode_BuildFramesAndReassemble(t *testing.T) {
 	cfg := core.DefaultConfig()
-	n := NewNode(stubTransport{}, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
+	n := NewNode(nil, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
 	// Create payload large enough to force multiple frames
 	big := make([]byte, 0, 1)
 	for i := 0; i < 400; i++ {
@@ -91,7 +69,7 @@ func TestNode_BuildFramesAndReassemble(t *testing.T) {
 
 func TestNode_GetPeers_Empty(t *testing.T) {
 	cfg := core.DefaultConfig()
-	n := NewNode(stubTransport{}, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
+	n := NewNode(nil, &cfg.Network, core.PeerInfo{ID: "self", Name: "self"})
 	peers := n.GetPeers()
 	if len(peers) != 0 {
 		t.Fatalf("expected no peers, got %d", len(peers))
