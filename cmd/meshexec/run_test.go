@@ -1,43 +1,32 @@
 package main
 
 import (
-	"encoding/json"
+	"bufio"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
 
-// startTestTCPServer starts a minimal loopback server that accepts one JSON {"cmd":"..."}
-// and returns a canned result. It closes after one response.
-func startTestTCPServer(t *testing.T) (addr string, stop func()) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		c, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer func() { _ = c.Close() }()
-		var req map[string]string
-		_ = json.NewDecoder(c).Decode(&req)
-		_ = json.NewEncoder(c).Encode(map[string]any{"ok": true, "result": map[string]any{"status": "success", "exit_code": 0, "stdout": "ok", "stderr": ""}})
-	}()
-	return ln.Addr().String(), func() { _ = ln.Close(); <-done }
-}
+func TestSendCommandTCP_UsesDialSeam(t *testing.T) {
+	old := tcpDial
+	defer func() { tcpDial = old }()
 
-func TestSendCommandTCP_CannedResponse(t *testing.T) {
-	addr, stop := startTestTCPServer(t)
-	defer stop()
-	res, err := sendCommandTCP(addr, "echo hi", 2*time.Second)
+	server, client := net.Pipe()
+	defer func() { _ = server.Close(); _ = client.Close() }()
+	tcpDial = func(addr string, timeout time.Duration) (net.Conn, error) { return client, nil }
+
+	go func() {
+		rd := bufio.NewReader(server)
+		_, _ = rd.ReadString('\n')
+		_, _ = server.Write([]byte("{\"ok\":true,\"result\":{\"status\":\"success\",\"exit_code\":0,\"stdout\":\"ok\",\"stderr\":\"\"}}\n"))
+	}()
+
+	res, err := sendCommandTCP("ignored", "echo hi", 2*time.Second)
 	if err != nil {
 		t.Fatalf("send error: %v", err)
 	}
-	if res == nil || res.Status != "success" || res.ExitCode != 0 {
+	if res == nil || res.Status != "success" || res.ExitCode != 0 || strings.TrimSpace(res.Stdout) != "ok" {
 		t.Fatalf("bad result: %+v", res)
 	}
 }

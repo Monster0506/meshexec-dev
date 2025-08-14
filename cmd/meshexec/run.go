@@ -37,6 +37,15 @@ var (
 // In production, this remains nil.
 var runMessageHook func(*core.CommandMessage)
 
+// tcpDial is a test seam to avoid real network dials in unit tests.
+var tcpDial = func(addr string, timeout time.Duration) (net.Conn, error) {
+	d := net.Dialer{Timeout: 3 * time.Second}
+	if timeout > 0 {
+		d.Timeout = timeout
+	}
+	return d.Dial("tcp", addr)
+}
+
 var runCmd = &cobra.Command{
 	Use:     "run [command] [args...]",
 	Short:   "Send a command to the mesh",
@@ -283,8 +292,7 @@ func sendCommandTCP(addr, command string, timeout time.Duration) (*core.Executio
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	d := net.Dialer{Timeout: 3 * time.Second}
-	conn, err := d.Dial("tcp", addr)
+	conn, err := tcpDial(addr, 3*time.Second)
 	if err != nil {
 		return nil, err
 	}

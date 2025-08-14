@@ -28,6 +28,13 @@ type Advertiser struct {
 	logger *logging.Logger
 }
 
+// resolver seam for tests
+type mdnsResolver interface {
+	Browse(ctx context.Context, service, domain string, entries chan<- *zeroconf.ServiceEntry) error
+}
+
+var newResolver = func() (mdnsResolver, error) { return zeroconf.NewResolver(nil) }
+
 // StartAdvertiser publishes the local node over mDNS with provided metadata
 func StartAdvertiser(instance string, port int, meta map[string]string) (*Advertiser, error) {
 	if port <= 0 {
@@ -69,7 +76,7 @@ func Discover(ctx context.Context, timeout time.Duration) ([]core.PeerInfo, erro
 	if lg != nil {
 		lg.Debug("mdns: discover begin", map[string]interface{}{"timeout_ms": timeout.Milliseconds(), "service": serviceType})
 	}
-	r, err := zeroconf.NewResolver(nil)
+	r, err := newResolver()
 	if err != nil {
 		if lg != nil {
 			lg.Warn("mdns: resolver create failed", map[string]interface{}{"error": err.Error()})
