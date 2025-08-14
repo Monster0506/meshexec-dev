@@ -2,14 +2,14 @@
 
 ## **Overview**
 
-MeshExec CLI allows multiple Bluetooth-enabled devices to form a self-healing mesh network to broadcast, relay, and execute shell commands securely and efficiently without Wi-Fi or central infrastructure.
+MeshExec CLI discovers peers on the local network using mDNS/zeroconf and executes shell commands over TCP without central infrastructure.
 
 ---
 
 ## **1. Goals**
 
 * Decentralized shell command execution
-* Bluetooth LE mesh network (no Wi-Fi)
+* Zero‑config LAN discovery (mDNS)
 * Role-based device discovery and targeting
 * Secure message passing
 * Low-latency, resilient command propagation
@@ -51,20 +51,19 @@ MeshExec CLI allows multiple Bluetooth-enabled devices to form a self-healing me
 
 ---
 
-### **B. Mesh Network Layer**
+### **B. Network Layer**
 
-* Bluetooth LE GATT-based peer-to-peer link
-* Mesh messages are relayed (flooding with TTL)
-* Custom protocol packet format
+* mDNS/zeroconf service `_meshexec._tcp` for peer discovery (TXT: role, os, arch, tags)
+* TCP JSON request/response for command transport
+* Optional future relaying/forwarding
 
 ---
 
 ### **C. Agent Daemon**
 
-* Listens for commands over BLE
-* Executes commands with system shell
-* Sends result/output back as BLE packets
-* Optional filtering/tagging of device roles
+* Listens for commands over TCP (default port 9876)
+* Advertises presence over mDNS with device metadata
+* Executes commands with system shell and returns JSON results
 
 ---
 
@@ -185,24 +184,13 @@ func SendCommand(command string, target string) {
 }
 ```
 
-### **BLE GATT Mesh Node**
+### **Daemon Listener (TCP)**
 
 ```go
-func StartMeshNode() {
-	go Advertise()
-	for {
-		packet := ReceiveBLE()
-		if packet.IsExpired() || packet.IsDuplicate() {
-			continue
-		}
-		if ShouldRelay(packet) {
-			Relay(packet)
-		}
-		if packet.Type == "cmd" && TargetMatch(packet.Target) {
-			result := ExecuteShell(packet.Command)
-			SendResult(packet.ID, result)
-		}
-	}
+func StartDaemon() {
+    ln, _ := net.Listen("tcp", ":9876")
+    go mdns.Advertise("meshexec-device", 9876, map[string]string{"role":"worker","os":"windows","arch":"amd64"})
+    for { conn, _ := ln.Accept(); go handleConn(conn) }
 }
 ```
 

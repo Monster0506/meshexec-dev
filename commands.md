@@ -25,10 +25,12 @@ Subcommands:
   Show effective configuration and its source path
 - `config validate` (Implemented)  
   Validate config file and report issues
+- `config edit` (Implemented)
+  Open the config file with $EDITOR/$VISUAL or OS sane default
 
 ---
 
-### run (Partially Implemented)
+### run (Implemented)
 Send a shell command to targeted devices in the mesh.
 
 **Usage:**
@@ -98,8 +100,8 @@ meshexec clone [flags]
 
 ---
 
-### join (Stub)
-Start participating in the mesh.
+### join (mDNS stream)
+Continuously discover peers via mDNS and print snapshots.
 
 **Flags:**
 - `--foreground`
@@ -108,16 +110,16 @@ Start participating in the mesh.
 
 ---
 
-### list (Stub)
-Show connected peers.
+### discover (Implemented)
+Discover devices via mDNS.
 
 **Flags:**
 - `--json`
 
 ---
 
-### status (Stub)
-Show recent execution status and network overview.
+### status (Implemented)
+Show recent execution status and discovered peers (uses mDNS).
 
 **Flags:**
 - `--json`

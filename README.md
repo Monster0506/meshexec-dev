@@ -2,7 +2,7 @@
 
 [![Go CI](https://github.com/Monster0506/meshexec-dev/actions/workflows/go.yml/badge.svg)](https://github.com/Monster0506/meshexec-dev/actions/workflows/go.yml)
 
-**MeshExec** is a Bluetooth-based mesh shell command runner for secure, distributed execution across nearby devices. It enables lightweight, ephemeral command sharing and execution even without Wi-Fi or internet -- ideal for ad-hoc collaboration, local automation, or field-based computing.
+**MeshExec** is a local‑network command runner that discovers peers via mDNS/zeroconf and executes shell commands over TCP. It enables lightweight, ephemeral command sharing and execution on the same LAN/Wi‑Fi without central infrastructure — ideal for ad‑hoc collaboration, local automation, or field work.
 
 > 🔧 Works offline. ⚡ Runs fast. 🐝 Meshes dynamically.
 
@@ -10,8 +10,8 @@
 
 ## 🧠 Key Features
 
-- 🔗 **Bluetooth Mesh Networking**  
-  Dynamically connect with nearby devices using BLE advertisements and GATT servers.
+- 🌐 **Zero‑config LAN discovery (mDNS)**  
+  Peers advertise `_meshexec._tcp`; no manual IPs required.
 
 - 📟 **Shell Command Distribution**  
   Broadcast shell commands to nodes in the mesh and gather outputs.
@@ -22,8 +22,8 @@
 - 🔐 **Secure by Design**  
   Pairing + identity handshake, sandboxing, and trust scopes per node or command.
 
-- 🌐 **Cross-Platform Support**  
-  Native Go bindings for Bluetooth work on **Linux**, **macOS**, and **Windows** (with caveats).
+- 🌐 **Cross‑platform**  
+  Works on Windows, macOS, and Linux over standard TCP/IP.
 
 - 📦 **Small Footprint**  
   <10MB binary, portable, and dependency-light.
@@ -42,7 +42,7 @@ go build -o meshexec ./cmd/meshexec
 sudo ./meshexec daemon
 ````
 
-**Windows (Experimental)**
+**Windows**
 
 ```powershell
 git clone https://github.com/monster0506/meshexec.git
@@ -51,9 +51,7 @@ go build -o meshexec.exe ./cmd/meshexec
 .\meshexec.exe daemon
 ```
 
-> ⚠️ On Windows, you must enable Developer Mode and run in an elevated terminal.
-
-> You must also run the commands in [buildingwindows.txt](sidecar/WinBLE/buildingwindows.txt)
+> Note: allow UDP 5353 (mDNS) and TCP 9876 (default) through the firewall.
 ---
 
 ### 💻 2. Run Your First Command
@@ -74,13 +72,13 @@ You should see a list of nodes, followed by output like:
 ## ⚙️ Architecture Overview
 
 * `daemon`
-  Runs a Bluetooth GATT server for device discovery and command transfer.
+  Starts a TCP listener and advertises via mDNS with device metadata (name, role, OS, arch).
 
 * `meshexec run`
-  Sends a broadcast or targeted command using BLE advertisement payloads.
+  Discovers peers via mDNS, filters targets (name/role/OS/arch/tags), connects via TCP, sends command JSON, prints results.
 
-* `meshexec status`
-  Queries current mesh status, connected peers, and device fingerprints.
+* `meshexec discover`
+  Lists mDNS peers and their advertised attributes.
 
 * `meshexec trust`
   Manage the node trust store (approve, revoke, scope, etc.)
@@ -90,18 +88,11 @@ You should see a list of nodes, followed by output like:
 
 ---
 
-## 📡 Bluetooth Mesh Internals
+## 📡 Network Internals
 
-MeshExec does not use standard Bluetooth Mesh profiles. Instead, it implements a minimal custom protocol using:
-
-* BLE advertisements (fast broadcast)
-  For presence announcements and command identifiers
-
-* BLE GATT characteristics (low-latency unicast)
-  For command payloads, ACKs, and output streams
-
-* Optional mesh relaying (store-and-forward)
-  Enables multihop routing in sparse topologies
+- mDNS/zeroconf for discovery (`_meshexec._tcp`) with TXT metadata (role, os, arch, tags)
+- Plain TCP for command transport (JSON request/response)
+- Target filtering happens client‑side before dialing
 
 ---
 
@@ -160,7 +151,7 @@ Notes & limitations
 | `meshexec log`                                    | View logs of received or sent commands |
 | `meshexec status`                                 | Print mesh status and available peers  |
 | `meshexec run --file ./script.sh`                 | Send and execute a script              |
-| `meshexec daemon --port 9001`                     | Change GATT port if needed             |
+| `meshexec discover`                               | List peers via mDNS                    |
 | `meshexec run --timeout 3`                        | Fail nodes after 3s with no response   |
 | `meshexec run --tag "dev"`                        | Target only nodes with tag `dev`       |
 
@@ -169,7 +160,7 @@ Notes & limitations
 ## 🧬 Roadmap
 
 * [ ] Command chunking for long scripts
-* [ ] Multi-hop routing via node relays
+* [ ] Optional relay/forwarding mode
 * [ ] Node tagging and auto-grouping
 * [ ] GUI mesh visualizer
 * [ ] File sync and remote copy support
@@ -182,7 +173,7 @@ Notes & limitations
 We welcome your PRs, issues, and ideas! Contributions can include:
 
 * Platform support testing
-* Bluetooth reliability improvements
+* UDP broadcast fallback (where mDNS blocked)
 * Security enhancements
 * UI/UX feedback (CLI ergonomics)
 * Docs & tutorials

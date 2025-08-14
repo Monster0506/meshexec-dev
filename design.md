@@ -2,7 +2,7 @@
 
 ## Overview
 
-MeshExec CLI is a decentralized command execution system built in Go that creates a self-healing Bluetooth LE mesh network for secure shell command execution across distributed devices. The system consists of a CLI frontend, mesh networking layer, agent daemon, and configuration management system that work together to provide reliable, secure, and targeted command execution without requiring centralized infrastructure.
+MeshExec CLI is a decentralized command execution system built in Go that discovers peers via mDNS/zeroconf and executes commands over TCP across devices on the same LAN. The system consists of a CLI frontend, discovery/transport layer (mDNS + TCP), agent daemon, and configuration management system that work together to provide reliable, secure, and targeted command execution without centralized infrastructure.
 
 ## Architecture
 
@@ -11,35 +11,35 @@ graph TB
     subgraph "Device A"
         CLI_A[CLI Frontend]
         Agent_A[Agent Daemon]
-        BLE_A[BLE Mesh Layer]
+        NET_A[Discovery + TCP Layer]
         Config_A[Config Manager]
         
         CLI_A --> Agent_A
-        Agent_A --> BLE_A
+        Agent_A --> NET_A
         Config_A --> Agent_A
     end
     
     subgraph "Device B"
         Agent_B[Agent Daemon]
-        BLE_B[BLE Mesh Layer]
+        NET_B[Discovery + TCP Layer]
         Config_B[Config Manager]
         
-        Agent_B --> BLE_B
+        Agent_B --> NET_B
         Config_B --> Agent_B
     end
     
     subgraph "Device C"
         Agent_C[Agent Daemon]
-        BLE_C[BLE Mesh Layer]
+        NET_C[Discovery + TCP Layer]
         Config_C[Config Manager]
         
-        Agent_C --> BLE_C
+        Agent_C --> NET_C
         Config_C --> Agent_C
     end
     
-    BLE_A <--> BLE_B
-    BLE_B <--> BLE_C
-    BLE_A <--> BLE_C
+    NET_A <--> NET_B
+    NET_B <--> NET_C
+    NET_A <--> NET_C
     
     subgraph "External"
         Shell_A[System Shell]
@@ -88,9 +88,9 @@ type TUIManager interface {
 - `status`: Show execution status
 - `tui`: Launch terminal UI dashboard
 
-### Mesh Network Layer (`internal/mesh`)
+### Discovery/Transport Layer
 
-**Purpose**: Handles Bluetooth LE communication, message routing, and network topology management
+**Purpose**: Handles peer discovery (mDNS) and TCP command transport
 
 **Key Interfaces**:
 ```go
@@ -102,12 +102,8 @@ type MeshNode interface {
     GetPeers() []PeerInfo
 }
 
-type BLETransport interface {
-    Advertise(ctx context.Context, serviceData []byte) error
-    Scan(ctx context.Context) (<-chan *Advertisement, error)
-    Connect(ctx context.Context, addr string) (*Connection, error)
-    CreateGATTService() (*GATTService, error)
-}
+// mDNS discover: see internal/discovery
+// TCP transport performed directly by CLI and daemon
 ```
 
 **Message Format**:
