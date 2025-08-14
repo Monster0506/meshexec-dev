@@ -1,8 +1,12 @@
 package tui
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +20,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/discovery"
 	"github.com/monster0506/meshexec/internal/logging"
 )
 
@@ -82,10 +87,153 @@ type model struct {
 	input      textinput.Model
 	suggList   list.Model
 	cmdHistory []string
+	targetExpr string
 
 	// Toasts
 	lastToast   string
 	lastToastAt time.Time
+}
+
+// command execution
+type execDoneMsg struct{ Results *internal.ExecutionResults }
+
+func (m model) executeCommand(command string) tea.Cmd {
+	m.toast("Executing: " + command)
+	// Discover peers then send, off the UI thread
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		discovery.SetLogger(m.logger)
+		peers, _ := discovery.Discover(ctx, 4500*time.Millisecond)
+		// Apply simple target filter from m.targetExpr (supports name/role/os/arch=val words)
+		if q := strings.TrimSpace(strings.ToLower(m.targetExpr)); q != "" && q != "all" {
+			want := map[string]string{}
+			parts := strings.FieldsFunc(q, func(r rune) bool { return r == '&' || r == '|' || r == ' ' })
+			for _, pr := range parts {
+				if eq := strings.IndexByte(pr, '='); eq > 0 {
+					k := strings.ToLower(strings.TrimSpace(pr[:eq]))
+					v := strings.Trim(strings.TrimSpace(pr[eq+1:]), "\"")
+					want[k] = v
+				}
+			}
+			filtered := make([]internal.PeerInfo, 0, len(peers))
+			for _, peer := range peers {
+				ok := true
+				for k, v := range want {
+					switch k {
+					case "name":
+						ok = ok && strings.EqualFold(peer.Name, v)
+					case "role":
+						ok = ok && strings.EqualFold(peer.Role, v)
+					case "os":
+						ok = ok && strings.EqualFold(peer.OS, v)
+					case "arch":
+						ok = ok && strings.EqualFold(peer.Arch, v)
+					default:
+						if tv, exists := peer.Tags[k]; exists {
+							ok = ok && strings.EqualFold(tv, v)
+						} else {
+							ok = false
+						}
+					}
+					if !ok {
+						break
+					}
+				}
+				if ok {
+					filtered = append(filtered, peer)
+				}
+			}
+			peers = filtered
+		}
+		if len(peers) == 0 {
+			res := &internal.ExecutionResults{
+				CommandID: "local-" + time.Now().Format("150405"),
+				Command:   command,
+				Target:    "none",
+				Results:   []internal.ExecutionResult{},
+				Summary:   internal.ResultSummary{TotalDevices: 0},
+				Timestamp: time.Now(),
+			}
+			return execDoneMsg{Results: res}
+		}
+		rows := make([]internal.ExecutionResult, 0, len(peers))
+		successes, failures, timeouts := 0, 0, 0
+		var totalDur int64
+		for _, p := range peers {
+			addr := p.Address
+			if !strings.Contains(addr, ":") {
+				addr = addr + ":9876"
+			}
+			start := time.Now()
+			r, err := tuiSendCommandTCP(addr, command, 30*time.Second)
+			durMs := int64(time.Since(start) / time.Millisecond)
+			if err != nil {
+				rows = append(rows, internal.ExecutionResult{Device: p.Name, ExitCode: 1, Stderr: err.Error(), Status: "failed", Duration: durMs})
+				failures++
+				totalDur += durMs
+				continue
+			}
+			if r.Status == "timeout" {
+				timeouts++
+			} else if r.ExitCode == 0 {
+				successes++
+			} else {
+				failures++
+			}
+			r.Device = p.Name
+			if r.Duration <= 0 {
+				r.Duration = durMs
+			}
+			rows = append(rows, *r)
+			totalDur += r.Duration
+		}
+		avg := int64(0)
+		if len(rows) > 0 {
+			avg = totalDur / int64(len(rows))
+		}
+		res := &internal.ExecutionResults{
+			CommandID: "local-" + time.Now().Format("150405"),
+			Command:   command,
+			Target:    "tui",
+			Results:   rows,
+			Summary:   internal.ResultSummary{TotalDevices: len(rows), Successful: successes, Failed: failures, Timeout: timeouts, AverageDuration: avg},
+			Timestamp: time.Now(),
+		}
+		return execDoneMsg{Results: res}
+	}
+}
+
+func tuiSendCommandTCP(addr, command string, timeout time.Duration) (*internal.ExecutionResult, error) {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	enc := json.NewEncoder(conn)
+	if err := enc.Encode(map[string]string{"cmd": command}); err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Ok     bool                      `json:"ok"`
+		Result *internal.ExecutionResult `json:"result"`
+	}
+	dec := json.NewDecoder(bufio.NewReader(conn))
+	if err := dec.Decode(&resp); err != nil {
+		return nil, err
+	}
+	if !resp.Ok {
+		return nil, fmt.Errorf("remote error")
+	}
+	if resp.Result == nil {
+		r := &internal.ExecutionResult{Status: "unknown"}
+		return r, nil
+	}
+	return resp.Result, nil
 }
 
 type uiStyles struct {
@@ -134,6 +282,16 @@ func buildStyles(th theme) uiStyles {
 	}
 }
 
+func defaultSuggestionItems() []list.Item {
+	return []list.Item{
+		list.Item(peerItem{Address: "", Name: "uptime", Role: "cmd"}),
+		list.Item(peerItem{Address: "", Name: "whoami", Role: "cmd"}),
+		list.Item(peerItem{Address: "", Name: "hostname", Role: "cmd"}),
+		list.Item(peerItem{Address: "", Name: "date", Role: "cmd"}),
+		list.Item(peerItem{Address: "", Name: "echo hello", Role: "cmd"}),
+	}
+}
+
 func newModel(logger *logging.Logger, th theme, useEmoji bool) model {
 	items := []list.Item{}
 	// Custom delegate with professional colors
@@ -167,22 +325,15 @@ func newModel(logger *logging.Logger, th theme, useEmoji bool) model {
 	rf.CharLimit = 80
 	rf.Prompt = "Filter: "
 
-	// Suggestions list for commands
-	suggItems := []list.Item{
-		list.Item(peerItem{Address: "", Name: "uptime", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "df -h", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "whoami", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "hostname", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "date", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "echo hello", Role: "cmd"}),
-	}
+	// Suggestions list for commands (defaults; history will be prepended dynamically)
+	suggItems := defaultSuggestionItems()
 	suggDel := list.NewDefaultDelegate()
 	suggDel.Styles.SelectedTitle = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg).Bold(true)
 	suggDel.Styles.SelectedDesc = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg)
 	suggDel.Styles.NormalTitle = lipgloss.NewStyle().Foreground(th.Text)
 	suggDel.Styles.NormalDesc = lipgloss.NewStyle().Foreground(th.Muted)
 	sl := list.New(suggItems, suggDel, 0, 0)
-	sl.Title = "Suggestions"
+	sl.Title = "Suggestions (history + common)"
 	sl.SetShowHelp(false)
 	sl.SetShowFilter(false)
 	sl.SetStatusBarItemName("suggestion", "suggestions")
@@ -289,6 +440,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tabCommands:
 				m.input.Focus()
 				m.resultFilter.Blur()
+				// capture targetExpr from peers list filter input, if any
+				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
+				// refresh suggestions with history
+				m.refreshSuggestions()
 			case tabResults:
 				m.resultFilter.Focus()
 				m.input.Blur()
@@ -308,6 +463,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tabCommands:
 				m.input.Focus()
 				m.resultFilter.Blur()
+				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
+				m.refreshSuggestions()
 			case tabResults:
 				m.resultFilter.Focus()
 				m.input.Blur()
@@ -333,6 +490,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tab = tabCommands
 				m.input.Focus()
 				m.resultFilter.Blur()
+				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
+				m.refreshSuggestions()
 				return m, nil
 			}
 		}
@@ -341,21 +500,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Simulate execution producing results
 			cmd := strings.TrimSpace(m.input.Value())
 			if cmd != "" {
-				res := &internal.ExecutionResults{
-					CommandID: "local-" + time.Now().Format("150405"),
-					Command:   cmd,
-					Target:    "demo",
-					Results: []internal.ExecutionResult{
-						{ID: "x1", Device: "local", ExitCode: 0, Stdout: cmd + " - ok", Duration: 500, Status: "ok"},
-					},
-					Summary:   internal.ResultSummary{TotalDevices: 1, Successful: 1, Failed: 0, Timeout: 0, AverageDuration: 500},
-					Timestamp: time.Now(),
+				// record history (dedupe recent)
+				if len(m.cmdHistory) == 0 || m.cmdHistory[0] != cmd {
+					m.cmdHistory = append([]string{cmd}, m.cmdHistory...)
+					if len(m.cmdHistory) > 20 {
+						m.cmdHistory = m.cmdHistory[:20]
+					}
 				}
-				// Update results and switch to results tab
-				m.results = res
-				m.cmdHistory = append([]string{cmd}, m.cmdHistory...)
-				m.toast("Executed: " + cmd)
-				m.tab = tabResults
+				m.refreshSuggestions()
+				return m, m.executeCommand(cmd)
 			}
 			return m, nil
 		}
@@ -386,6 +539,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case resultsUpdateMsg:
 		m.results = msg.Results
 		return m, nil
+	case execDoneMsg:
+		m.results = msg.Results
+		m.tab = tabResults
+		return m, nil
 	case time.Time:
 		// periodic tick to refresh animations/toasts
 		return m, tea.Tick(time.Second, func(t time.Time) tea.Msg { return t })
@@ -400,6 +557,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.tab == tabCommands {
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
+		// allow selecting from suggestions
+		if km, ok := msg.(tea.KeyMsg); ok {
+			if km.String() == "tab" { // autocomplete from selected suggestion
+				if it := m.suggList.SelectedItem(); it != nil {
+					if pi, ok := it.(peerItem); ok {
+						m.input.SetValue(pi.Name)
+					}
+				}
+			}
+		}
 		return m, cmd
 	}
 	if m.tab == tabResults {
@@ -513,7 +680,7 @@ func (m model) renderResults() string {
 }
 
 func (m model) renderCommands() string {
-	hint := lipgloss.NewStyle().Foreground(m.theme.Muted).Render("Press Enter to simulate execution (demo)")
+	hint := lipgloss.NewStyle().Foreground(m.theme.Muted).Render("Enter to run. Tab to take suggestion. Peers filtered by target: " + choose(m.targetExpr != "", m.targetExpr, "all"))
 	return lipgloss.JoinVertical(lipgloss.Top, m.input.View(), m.suggList.View(), hint)
 }
 
@@ -677,4 +844,25 @@ func (m model) currentViewName() string {
 	default:
 		return ""
 	}
+}
+
+func (m *model) refreshSuggestions() {
+	// Build items: history first, then defaults (no duplicates)
+	seen := map[string]bool{}
+	items := make([]list.Item, 0, len(m.cmdHistory)+5)
+	for _, h := range m.cmdHistory {
+		if h = strings.TrimSpace(h); h != "" && !seen[h] {
+			items = append(items, list.Item(peerItem{Address: "", Name: h, Role: "cmd"}))
+			seen[h] = true
+		}
+	}
+	for _, it := range defaultSuggestionItems() {
+		if pi, ok := it.(peerItem); ok {
+			if !seen[pi.Name] {
+				items = append(items, it)
+				seen[pi.Name] = true
+			}
+		}
+	}
+	m.suggList.SetItems(items)
 }

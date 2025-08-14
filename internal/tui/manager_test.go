@@ -1,15 +1,15 @@
 package tui
 
 import (
-    "bytes"
-    "context"
-    "io"
-    "testing"
-    "time"
+	"bytes"
+	"context"
+	"io"
+	"testing"
+	"time"
 
-    tea "github.com/charmbracelet/bubbletea"
-    "github.com/monster0506/meshexec/internal"
-    "github.com/monster0506/meshexec/internal/logging"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/monster0506/meshexec/internal"
+	"github.com/monster0506/meshexec/internal/logging"
 )
 
 func TestManager_ConstructorsAndOptions_Basics(t *testing.T) {
@@ -39,12 +39,12 @@ func TestManager_StartTUI_ImmediateCancel_Basics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	// Should return quickly; tolerate transient bubbletea error values
-    _ = m.StartTUI(
-        ctx,
-        WithInitialView("peers"),
-        // Avoid blocking on console input and disable output in CI
-        WithProgramOptions(tea.WithInput(bytes.NewReader(nil)), tea.WithOutput(io.Discard)),
-    )
+	_ = m.StartTUI(
+		ctx,
+		WithInitialView("peers"),
+		// Avoid blocking on console input and disable output in CI
+		WithProgramOptions(tea.WithInput(bytes.NewReader(nil)), tea.WithOutput(io.Discard)),
+	)
 
 	// Now send updates after program has exited; should be safe no-ops
 	m.UpdateResults(&internal.ExecutionResults{CommandID: "c2"})
