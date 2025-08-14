@@ -24,9 +24,10 @@ func NewManager(logger *logging.Logger) *Manager {
 
 // Options for starting the TUI
 type options struct {
-	initialView string
-	themeName   string
-	useEmoji    bool
+	initialView    string
+	themeName      string
+	useEmoji       bool
+	programOptions []tea.ProgramOption
 }
 
 type Option func(*options)
@@ -41,6 +42,11 @@ func WithTheme(name string) Option { return func(o *options) { o.themeName = nam
 
 // WithEmoji toggles emoji/micro-icons usage
 func WithEmoji(enabled bool) Option { return func(o *options) { o.useEmoji = enabled } }
+
+// WithProgramOptions forwards options to bubbletea's NewProgram (useful for tests like WithoutInput/WithoutRenderer)
+func WithProgramOptions(opts ...tea.ProgramOption) Option {
+	return func(o *options) { o.programOptions = append(o.programOptions, opts...) }
+}
 
 // StartTUI launches the Bubble Tea program and blocks until it exits
 func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
@@ -70,7 +76,9 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
 		model = newModel(m.logger, th, cfg.useEmoji)
 	}
 	m.mu.Lock()
-	m.program = tea.NewProgram(model, tea.WithContext(ctx))
+	// Always include context; allow callers to provide additional tea.ProgramOption values
+	progOpts := append([]tea.ProgramOption{tea.WithContext(ctx)}, cfg.programOptions...)
+	m.program = tea.NewProgram(model, progOpts...)
 	m.mu.Unlock()
 
 	// Watch for context cancellation and request quit
