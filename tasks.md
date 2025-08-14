@@ -66,22 +66,17 @@
     - Write unit tests for command safety validation on Windows and Unix
     - _Requirements: 7.2, 7.3, 7.4, 7.1_
 
-- [x] 6. Implement Bluetooth LE transport layer
-  - [x] 6.1 Create BLE transport interface and basic operations
-    - Implement BLETransport interface with Advertise, Scan, and Connect methods
-    - Use native Go Bluetooth libraries (e.g., tinygo.org/x/bluetooth or go-ble/ble) for cross-platform support
-    - Set up GATT service creation and characteristic handling using Go bindings
-    - Add device discovery and connection management with unified Go interface
-    - Write unit tests with mock BLE transport using Go interfaces
-    - _Requirements: 2.1, 2.2, 2.3_
+- [x] 6. Implement TCP/mDNS network layer (replaces BLE)
+  - [x] 6.1 Implement mDNS advertiser/discovery (`_meshexec._tcp`)
+    - Advertise daemon with device metadata (name, role, os, arch)
+    - Discover peers with time-bounded queries and TXT parsing
+    - Add debug logs and resolver seam for tests
+  - [x] 6.2 Implement TCP command transport
+    - Daemon TCP listener (default port 9876); execute and return JSON results
+    - CLI run: discover → target filter → TCP send → render results
+  - [x] 6.3 Network commands
+    - `discover` (mDNS), `list` (mDNS), `status` (uses mDNS)
 
-  - [x] 6.2 Implement BLE message transmission
-    - Add message sending and receiving over GATT characteristics using Go BLE libraries
-    - Implement message fragmentation for large payloads with cross-platform MTU handling
-    - Handle BLE connection errors and reconnection logic through Go BLE abstractions
-    - Add comprehensive error handling for adapter states using Go library error types
-    - Write integration tests for BLE message transmission using Go BLE test utilities
-    - _Requirements: 2.1, 2.3, 2.4_
 
 - [ ] 7. Implement mesh networking layer
   - [x] 7.1 Create mesh node with peer management
@@ -128,12 +123,11 @@
     - Write unit tests for CLI command parsing
     - _Requirements: 6.1, 6.2_
 
-  - [ ] 9.2 Implement run command with targeting
-    - Add run command implementation with target expression parsing
-    - Integrate with agent for command execution and result collection
-    - Add dry-run mode and command validation
-    - Write unit tests for run command functionality
-    - _Requirements: 1.1, 4.1, 4.2, 7.1_
+  - [x] 9.2 Implement run command with targeting (TCP/mDNS)
+    - Target expression parsing (name/role/os/arch/tags), dry-run, timeout/workdir/safe-mode
+    - Discover peers via mDNS, TCP send, rich result printing
+    - Unit tests for flag parsing and TCP send via dial seam
+    - _Requirements: 1.1, 4.1, 4.2_
 
   - [x] 9.3 Implement network management commands
     - Add join command to start mesh participation
@@ -173,16 +167,11 @@
     - _Requirements: 3.3, 7.4_
 
 - [ ] 12. Create comprehensive test suite
-  - [ ] 12.1 Implement integration tests for mesh networking
-    - Create test infrastructure with mock BLE transport and multiple nodes
-    - Write tests for mesh formation, command propagation, and network healing
-    - Add tests for security validation and configuration loading
-    - Set up automated test execution with proper cleanup
-    - _Requirements: All requirements validation_
-
-  - [ ] 12.2 Create end-to-end testing framework
-    - Implement Docker-based testing with multiple simulated devices
-    - Add performance tests for message latency and throughput
-    - Create security tests for signature verification and command safety
-    - Write documentation for running and extending tests
-    - _Requirements: All requirements validation_
+  - [ ] 12.1 Integration tests for TCP/mDNS
+    - Resolver seam for mDNS; tests for discovery parsing and timeouts (no network)
+    - Loopback tests for daemon TCP handler and CLI run behavior (dial seam)
+    - Security/config validation tests
+  - [ ] 12.2 End-to-end test framework (optional)
+    - Docker-based multi-node LAN tests for discovery and command fan-out
+    - Performance tests (concurrency and per-peer timeouts)
+    - Result aggregation and exit-code semantics
