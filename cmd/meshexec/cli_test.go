@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	core "github.com/monster0506/meshexec/internal"
@@ -179,5 +181,67 @@ func TestCloneFlags_ParsingOnly(t *testing.T) {
 	execArgs(t, "clone", "-t", "peer-1", "--dest", "./out")
 	if cloneTarget != "peer-1" || cloneDest != "./out" {
 		t.Fatalf("unexpected clone flags: target=%q dest=%q", cloneTarget, cloneDest)
+	}
+}
+
+func TestConfigEdit_InvokesEditorWithExistingFile(t *testing.T) {
+	// Arrange stub editor
+	oldRun := configRunEditor
+	defer func() { configRunEditor = oldRun }()
+	called := false
+	var gotEditor string
+	var gotArgs []string
+	configRunEditor = func(editor string, args []string) error {
+		called = true
+		gotEditor = editor
+		gotArgs = append([]string(nil), args...)
+		return nil
+	}
+
+	// Use a temporary config file
+	tmp, err := os.CreateTemp(t.TempDir(), "cfg-*.toml")
+	if err != nil {
+		t.Fatalf("temp file: %v", err)
+	}
+	_ = tmp.Close()
+
+	// Act
+	execArgs(t, "-c", tmp.Name(), "config", "edit")
+
+	// Assert
+	if !called {
+		t.Fatalf("expected editor to be invoked")
+	}
+	if gotEditor == "" {
+		t.Fatalf("expected an editor command to be chosen")
+	}
+	if len(gotArgs) == 0 || gotArgs[len(gotArgs)-1] != tmp.Name() {
+		t.Fatalf("expected editor args to end with config path; args=%v path=%q", gotArgs, tmp.Name())
+	}
+}
+
+func TestConfigEdit_CreatesDefaultWhenMissing(t *testing.T) {
+	// Arrange: stub editor to no-op
+	oldRun := configRunEditor
+	defer func() { configRunEditor = oldRun }()
+	configRunEditor = func(editor string, args []string) error { return nil }
+
+	// Use path inside temp dir that does not exist yet
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
+		t.Fatalf("expected non-existent path for test, got err=%v", err)
+	}
+
+	// Act
+	execArgs(t, "-c", cfgPath, "config", "edit")
+
+	// Assert: file should now exist and be non-empty
+	st, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatalf("expected config file to be created: %v", err)
+	}
+	if st.Size() == 0 {
+		t.Fatalf("expected created config to be non-empty")
 	}
 }

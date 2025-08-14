@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/monster0506/meshexec/internal"
-	"github.com/monster0506/meshexec/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +17,18 @@ var configCmd = &cobra.Command{
 	Short: "Manage configuration",
 	Long:  `Manage MeshExec CLI configuration files and settings.`,
 }
+
+// indirections for testability
+var (
+	// configNewManagerWithLevel is declared in network.go for package-wide reuse
+	configRunEditor = func(editor string, argsWithFile []string) error {
+		c := exec.Command(editor, argsWithFile...)
+		c.Stdin = os.Stdin
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		return c.Run()
+	}
+)
 
 var configShowCmd = &cobra.Command{
 	Use:   "show",
@@ -28,7 +39,7 @@ var configShowCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		manager := config.NewManagerWithLevel(logLevel)
+		manager := configNewManagerWithLevel(logLevel)
 
 		// Get config path from global flags
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -64,7 +75,7 @@ var configInitCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		manager := config.NewManagerWithLevel(logLevel)
+		manager := configNewManagerWithLevel(logLevel)
 
 		// Get config path from global flags
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -92,7 +103,7 @@ var configEditCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		manager := config.NewManagerWithLevel(logLevel)
+		manager := configNewManagerWithLevel(logLevel)
 
 		// Respect global --config path
 		if configPath, _ := cmd.Root().PersistentFlags().GetString("config"); configPath != "" {
@@ -157,11 +168,7 @@ var configEditCmd = &cobra.Command{
 			logger.Info("config edit: opening editor", map[string]interface{}{"editor": editor, "args": strings.Join(editorArgs, " "), "path": cfgPath})
 		}
 
-		c := exec.Command(editor, argsWithFile...)
-		c.Stdin = os.Stdin
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-		if err := c.Run(); err != nil {
+		if err := configRunEditor(editor, argsWithFile); err != nil {
 			me := internal.NewConfigError("editor_failed", "failed to open editor", map[string]interface{}{"editor": editor, "error": err.Error()})
 			fmt.Fprintln(os.Stderr, internal.FormatUserError(me))
 			os.Exit(1)
@@ -188,7 +195,7 @@ var configValidateCmd = &cobra.Command{
 		if verbose {
 			logLevel = "debug"
 		}
-		manager := config.NewManagerWithLevel(logLevel)
+		manager := configNewManagerWithLevel(logLevel)
 		configPath, _ := cmd.Root().PersistentFlags().GetString("config")
 		if configPath != "" {
 			manager.SetConfigPath(configPath)
