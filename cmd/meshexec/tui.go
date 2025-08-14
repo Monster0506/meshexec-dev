@@ -42,37 +42,53 @@ var tuiCmd = &cobra.Command{
 		if logger != nil {
 			logger.Info("tui: mDNS discovery", nil)
 		}
+		// enable discovery logging
+		discovery.SetLogger(logger)
 
-		// Subscribe to peer updates and push snapshots into the UI
-		subCtx, subCancel := context.WithCancel(ctx)
-		defer subCancel()
+		// Subscribe to peer updates and push snapshots into the UI, sequentially
 		go func() {
-			ticker := time.NewTicker(2 * time.Second)
-			defer ticker.Stop()
+			interval := 2 * time.Second
 			for {
 				select {
-				case <-subCtx.Done():
+				case <-ctx.Done():
 					return
-				case <-ticker.C:
-					c, cc := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-					peers, _ := discovery.Discover(c, 1500*time.Millisecond)
-					cc()
-					ui.UpdatePeers(peers)
+				default:
+				}
+				start := time.Now()
+				c, cc := context.WithTimeout(ctx, 4*time.Second)
+				peers, err := discovery.Discover(c, 3500*time.Millisecond)
+				cc()
+				if err != nil && logger != nil {
+					logger.Debug("tui: discovery error", map[string]interface{}{"error": err.Error()})
+				}
+				ui.UpdatePeers(peers)
+				// maintain roughly the desired interval
+				elapsed := time.Since(start)
+				if remaining := interval - elapsed; remaining > 0 {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(remaining):
+					}
 				}
 			}
 		}()
 
 		// Start TUI
-		return ui.StartTUI(ctx, tui.WithInitialView(tuiView))
+		return ui.StartTUI(ctx, tui.WithInitialView(tuiView), tui.WithTheme(tuiTheme), tui.WithEmoji(!tuiNoEmoji))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tuiCmd)
 	tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: peers|results|overview")
+	tuiCmd.Flags().StringVar(&tuiTheme, "theme", "dark", "theme: dark|light|hc")
+	tuiCmd.Flags().BoolVar(&tuiNoEmoji, "no-emoji", false, "disable emoji/icons in the TUI")
 	// removed allow-sim; BLE disabled
 }
 
 var tuiView string
+var tuiTheme string
+var tuiNoEmoji bool
 
 // BLE simulation flag removed

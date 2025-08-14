@@ -25,14 +25,22 @@ func NewManager(logger *logging.Logger) *Manager {
 // Options for starting the TUI
 type options struct {
 	initialView string
+	themeName   string
+	useEmoji    bool
 }
 
 type Option func(*options)
 
-func defaultOptions() options { return options{initialView: ""} }
+func defaultOptions() options { return options{initialView: "", themeName: "dark", useEmoji: true} }
 
 // WithInitialView sets the initial view key (e.g., "overview", "peers", "results")
 func WithInitialView(view string) Option { return func(o *options) { o.initialView = view } }
+
+// WithTheme selects a theme variant: "dark" (default), "light", or "hc" (high-contrast)
+func WithTheme(name string) Option { return func(o *options) { o.themeName = name } }
+
+// WithEmoji toggles emoji/micro-icons usage
+func WithEmoji(enabled bool) Option { return func(o *options) { o.useEmoji = enabled } }
 
 // StartTUI launches the Bubble Tea program and blocks until it exits
 func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
@@ -54,11 +62,12 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
 		}
 	}
 
+	th := themeFor(cfg.themeName)
 	var model model
 	if cfg.initialView != "" {
-		model = newModelWithInitialView(m.logger, cfg.initialView)
+		model = newModelWithInitialView(m.logger, th, cfg.useEmoji, cfg.initialView)
 	} else {
-		model = newModel(m.logger)
+		model = newModel(m.logger, th, cfg.useEmoji)
 	}
 	m.mu.Lock()
 	m.program = tea.NewProgram(model, tea.WithContext(ctx))

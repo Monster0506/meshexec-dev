@@ -9,7 +9,7 @@ import (
 )
 
 func TestModel_InitAndPeerUpdate(t *testing.T) {
-	m := newModel(logging.NewLogger("none"))
+	m := newModel(logging.NewLogger("none"), defaultTheme(), false)
 	if m.peerList.FilterState() == 0 { // ensure list created
 		t.Log("peer list initialized")
 	}
@@ -22,7 +22,7 @@ func TestModel_InitAndPeerUpdate(t *testing.T) {
 }
 
 func TestModel_ResultFiltering(t *testing.T) {
-	m := newModel(logging.NewLogger("none"))
+	m := newModel(logging.NewLogger("none"), defaultTheme(), false)
 	res := &internal.ExecutionResults{
 		Results: []internal.ExecutionResult{
 			{Device: "alpha", Status: "ok", Stdout: "hello"},
@@ -41,23 +41,23 @@ func TestModel_ResultFiltering(t *testing.T) {
 }
 
 func TestNewModelWithInitialView(t *testing.T) {
-	mPeers := newModelWithInitialView(logging.NewLogger("none"), "peers")
+	mPeers := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "peers")
 	if mPeers.tab != tabPeers {
 		t.Fatalf("expected peers tab, got %v", mPeers.tab)
 	}
-	mOverview := newModelWithInitialView(logging.NewLogger("none"), "overview")
+	mOverview := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "overview")
 	if mOverview.tab != tabPeers {
 		t.Fatalf("expected overview->peers tab, got %v", mOverview.tab)
 	}
-	mResults := newModelWithInitialView(logging.NewLogger("none"), "results")
+	mResults := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "results")
 	if mResults.tab != tabResults {
 		t.Fatalf("expected results tab, got %v", mResults.tab)
 	}
-	mCommands := newModelWithInitialView(logging.NewLogger("none"), "commands")
+	mCommands := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "commands")
 	if mCommands.tab != tabCommands {
 		t.Fatalf("expected commands tab, got %v", mCommands.tab)
 	}
-	mUnknown := newModelWithInitialView(logging.NewLogger("none"), "nope")
+	mUnknown := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "nope")
 	if mUnknown.tab != tabPeers {
 		t.Fatalf("expected fallback to peers tab, got %v", mUnknown.tab)
 	}
