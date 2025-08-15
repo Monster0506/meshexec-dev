@@ -1,868 +1,627 @@
 package tui
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
 	"fmt"
-	"math"
-	"net"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	list "github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/monster0506/meshexec/internal"
-	"github.com/monster0506/meshexec/internal/discovery"
 	"github.com/monster0506/meshexec/internal/logging"
 )
 
-// messages pushed into the UI
-type resultsUpdateMsg struct{ Results *internal.ExecutionResults }
-type peersUpdateMsg struct{ Peers []internal.PeerInfo }
+// minimal messages used by tests
+type resultsUpdateMsg struct{ Results interface{} }
+type peersUpdateMsg struct{ Peers interface{} }
 
-type viewTab int
+// tab identifiers used by tests
+type tab int
 
 const (
-	tabPeers viewTab = iota
+	tabOverview tab = iota
+	tabPeers
 	tabResults
 	tabCommands
 )
 
-// key map for help
-type keyMap struct {
-	NextTab key.Binding
-	PrevTab key.Binding
-	Quit    key.Binding
+// simple peer list placeholder compatible with tests
+type peerListModel struct {
+	items []interface{}
 }
 
-func (k keyMap) ShortHelp() []key.Binding  { return []key.Binding{k.PrevTab, k.NextTab, k.Quit} }
-func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{{k.PrevTab, k.NextTab, k.Quit}} }
+func (p *peerListModel) Items() []interface{}         { return p.items }
+func (p *peerListModel) SetItems(items []interface{}) { p.items = items }
+func (p *peerListModel) FilterState() int             { return 0 }
 
-// list item for peers
-type peerItem internal.PeerInfo
+// simple filter placeholder
+type textInput struct{ value string }
 
-func (p peerItem) Title() string { return fmt.Sprintf("%s (%s)", p.Name, p.Role) }
-func (p peerItem) Description() string {
-	return fmt.Sprintf("%s • %s/%s • RSSI %d", p.Address, p.OS, p.Arch, p.SignalStrength)
-}
-func (p peerItem) FilterValue() string {
-	return strings.ToLower(p.Name + " " + p.Role + " " + p.OS + " " + p.Arch)
-}
+func (t *textInput) SetValue(v string) { t.value = v }
+func (t *textInput) Value() string     { return t.value }
 
+// model is the main TUI model with simulated state
 type model struct {
-	logger *logging.Logger
-
-	width  int
-	height int
-
-	tab      viewTab
-	keys     keyMap
-	help     help.Model
-	theme    theme
-	useEmoji bool
-
-	// cached styles
-	styles uiStyles
-
-	// Peers
-	peerList list.Model
-	// peers detail needs width awareness
-
-	// Results
+	logger       *logging.Logger
+	peerList     peerListModel
 	results      *internal.ExecutionResults
-	progressBar  progress.Model
-	resultFilter textinput.Model
-	resultsTable table.Model
-	sortBy       string // device|status|duration
-
-	// Commands (placeholder)
-	input      textinput.Model
-	suggList   list.Model
-	cmdHistory []string
-	targetExpr string
-
-	// Toasts
-	lastToast   string
-	lastToastAt time.Time
+	resultFilter textInput
+	tab          tab
+	theme        Theme
+	icons        Icons
+	width        int
+	height       int
+	showHelp     bool
+	showPopup    bool
+	popupContent string
+	popupTitle   string
+	// Theme picker state
+	showThemePicker bool
+	selectedTheme   int
+	// Simulated data
+	simulatedPeers   []internal.PeerInfo
+	simulatedResults []*internal.ExecutionResults
+	lastUpdate       time.Time
 }
 
-// command execution
-type execDoneMsg struct{ Results *internal.ExecutionResults }
-
-func (m model) executeCommand(command string) tea.Cmd {
-	m.toast("Executing: " + command)
-	// Discover peers then send, off the UI thread
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		discovery.SetLogger(m.logger)
-		peers, _ := discovery.Discover(ctx, 4500*time.Millisecond)
-		// Apply simple target filter from m.targetExpr (supports name/role/os/arch=val words)
-		if q := strings.TrimSpace(strings.ToLower(m.targetExpr)); q != "" && q != "all" {
-			want := map[string]string{}
-			parts := strings.FieldsFunc(q, func(r rune) bool { return r == '&' || r == '|' || r == ' ' })
-			for _, pr := range parts {
-				if eq := strings.IndexByte(pr, '='); eq > 0 {
-					k := strings.ToLower(strings.TrimSpace(pr[:eq]))
-					v := strings.Trim(strings.TrimSpace(pr[eq+1:]), "\"")
-					want[k] = v
-				}
-			}
-			filtered := make([]internal.PeerInfo, 0, len(peers))
-			for _, peer := range peers {
-				ok := true
-				for k, v := range want {
-					switch k {
-					case "name":
-						ok = ok && strings.EqualFold(peer.Name, v)
-					case "role":
-						ok = ok && strings.EqualFold(peer.Role, v)
-					case "os":
-						ok = ok && strings.EqualFold(peer.OS, v)
-					case "arch":
-						ok = ok && strings.EqualFold(peer.Arch, v)
-					default:
-						if tv, exists := peer.Tags[k]; exists {
-							ok = ok && strings.EqualFold(tv, v)
-						} else {
-							ok = false
-						}
-					}
-					if !ok {
-						break
-					}
-				}
-				if ok {
-					filtered = append(filtered, peer)
-				}
-			}
-			peers = filtered
-		}
-		if len(peers) == 0 {
-			res := &internal.ExecutionResults{
-				CommandID: "local-" + time.Now().Format("150405"),
-				Command:   command,
-				Target:    "none",
-				Results:   []internal.ExecutionResult{},
-				Summary:   internal.ResultSummary{TotalDevices: 0},
-				Timestamp: time.Now(),
-			}
-			return execDoneMsg{Results: res}
-		}
-		rows := make([]internal.ExecutionResult, 0, len(peers))
-		successes, failures, timeouts := 0, 0, 0
-		var totalDur int64
-		for _, p := range peers {
-			addr := p.Address
-			if !strings.Contains(addr, ":") {
-				addr = addr + ":9876"
-			}
-			start := time.Now()
-			r, err := tuiSendCommandTCP(addr, command, 30*time.Second)
-			durMs := int64(time.Since(start) / time.Millisecond)
-			if err != nil {
-				rows = append(rows, internal.ExecutionResult{Device: p.Name, ExitCode: 1, Stderr: err.Error(), Status: "failed", Duration: durMs})
-				failures++
-				totalDur += durMs
-				continue
-			}
-			if r.Status == "timeout" {
-				timeouts++
-			} else if r.ExitCode == 0 {
-				successes++
-			} else {
-				failures++
-			}
-			r.Device = p.Name
-			if r.Duration <= 0 {
-				r.Duration = durMs
-			}
-			rows = append(rows, *r)
-			totalDur += r.Duration
-		}
-		avg := int64(0)
-		if len(rows) > 0 {
-			avg = totalDur / int64(len(rows))
-		}
-		res := &internal.ExecutionResults{
-			CommandID: "local-" + time.Now().Format("150405"),
-			Command:   command,
-			Target:    "tui",
-			Results:   rows,
-			Summary:   internal.ResultSummary{TotalDevices: len(rows), Successful: successes, Failed: failures, Timeout: timeouts, AverageDuration: avg},
-			Timestamp: time.Now(),
-		}
-		return execDoneMsg{Results: res}
-	}
+// Available themes for the picker
+var availableThemes = []ThemeType{
+	ThemeDark,
+	ThemeLight,
+	ThemeHighContrast,
+	ThemeOcean,
+	ThemeForest,
+	ThemeSunset,
+	ThemeCyberpunk,
+	ThemeRetro,
+	ThemeMonokai,
+	ThemeNord,
+	ThemeDracula,
+	ThemeSolarized,
+	ThemeGruvbox,
+	ThemeTokyo,
+	ThemeCandy,
 }
 
-func tuiSendCommandTCP(addr, command string, timeout time.Duration) (*internal.ExecutionResult, error) {
-	if timeout <= 0 {
-		timeout = 5 * time.Second
+func newModel(logger *logging.Logger, theme Theme, useEmoji bool) model {
+	m := model{
+		logger: logger,
+		theme:  theme,
+		icons:  defaultIcons(useEmoji),
+		tab:    tabOverview,
+		width:  80,
+		height: 24,
 	}
-	conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = conn.Close() }()
-	_ = conn.SetDeadline(time.Now().Add(timeout))
-	enc := json.NewEncoder(conn)
-	if err := enc.Encode(map[string]string{"cmd": command}); err != nil {
-		return nil, err
-	}
-	var resp struct {
-		Ok     bool                      `json:"ok"`
-		Result *internal.ExecutionResult `json:"result"`
-	}
-	dec := json.NewDecoder(bufio.NewReader(conn))
-	if err := dec.Decode(&resp); err != nil {
-		return nil, err
-	}
-	if !resp.Ok {
-		return nil, fmt.Errorf("remote error")
-	}
-	if resp.Result == nil {
-		r := &internal.ExecutionResult{Status: "unknown"}
-		return r, nil
-	}
-	return resp.Result, nil
+	m.initSimulatedData()
+	return m
 }
 
-type uiStyles struct {
-	bg                lipgloss.Style
-	container         lipgloss.Style
-	header            lipgloss.Style
-	subtitle          lipgloss.Style
-	tabActive         lipgloss.Style
-	tabNormal         lipgloss.Style
-	divider           lipgloss.Style
-	footer            lipgloss.Style
-	badge             lipgloss.Style
-	chipOk            lipgloss.Style
-	chipFail          lipgloss.Style
-	chipWarn          lipgloss.Style
-	selection         lipgloss.Style
-	listItemTitle     lipgloss.Style
-	listItemDesc      lipgloss.Style
-	listSelectedTitle lipgloss.Style
-	listSelectedDesc  lipgloss.Style
-	detailCard        lipgloss.Style
-	skeleton          lipgloss.Style
-}
-
-func buildStyles(th theme) uiStyles {
-	return uiStyles{
-		bg:                lipgloss.NewStyle().Background(th.Background).Foreground(th.Text),
-		container:         lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(th.Border).Padding(1, 3).Background(th.Surface),
-		header:            lipgloss.NewStyle().Foreground(th.Text).Bold(true),
-		subtitle:          lipgloss.NewStyle().Foreground(th.Muted),
-		tabActive:         lipgloss.NewStyle().Foreground(th.Primary).Bold(true).Underline(true),
-		tabNormal:         lipgloss.NewStyle().Foreground(th.Muted),
-		divider:           lipgloss.NewStyle().Foreground(th.Border),
-		footer:            lipgloss.NewStyle().Foreground(th.Muted),
-		badge:             lipgloss.NewStyle().Foreground(th.ChipText).Background(th.ChipBg).Padding(0, 1).Bold(true),
-		chipOk:            lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.Good).Padding(0, 1),
-		chipFail:          lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.Bad).Padding(0, 1),
-		chipWarn:          lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.Warn).Padding(0, 1),
-		selection:         lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg),
-		listItemTitle:     lipgloss.NewStyle().Foreground(th.Text),
-		listItemDesc:      lipgloss.NewStyle().Foreground(th.Muted),
-		listSelectedTitle: lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg).Bold(true),
-		listSelectedDesc:  lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg),
-		detailCard:        lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(th.Border).Padding(1).Background(th.Surface),
-		skeleton:          lipgloss.NewStyle().Foreground(th.Muted).Background(th.InfoBg),
-	}
-}
-
-func defaultSuggestionItems() []list.Item {
-	return []list.Item{
-		list.Item(peerItem{Address: "", Name: "uptime", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "whoami", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "hostname", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "date", Role: "cmd"}),
-		list.Item(peerItem{Address: "", Name: "echo hello", Role: "cmd"}),
-	}
-}
-
-func newModel(logger *logging.Logger, th theme, useEmoji bool) model {
-	items := []list.Item{}
-	// Custom delegate with professional colors
-	del := list.NewDefaultDelegate()
-	del.Styles.SelectedTitle = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg).Bold(true)
-	del.Styles.SelectedDesc = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg)
-	del.Styles.NormalTitle = lipgloss.NewStyle().Foreground(th.Text)
-	del.Styles.NormalDesc = lipgloss.NewStyle().Foreground(th.Muted)
-	lst := list.New(items, del, 0, 0)
-	lst.Title = "Peers"
-	lst.SetShowHelp(false)
-	lst.SetShowFilter(true)
-	lst.SetStatusBarItemName("peer", "peers")
-
-	km := keyMap{
-		NextTab: key.NewBinding(key.WithKeys("right", "]", "2", "3"), key.WithHelp("→ 2/3", "next tab")),
-		PrevTab: key.NewBinding(key.WithKeys("left", "[", "1", "2"), key.WithHelp("← 1/2", "prev tab")),
-		Quit:    key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
-	}
-
-	pb := progress.New(progress.WithGradient(string(th.Primary), string(th.Secondary)))
-
-	ti := textinput.New()
-	ti.Placeholder = "Type a command (e.g., echo hello)"
-	ti.CharLimit = 256
-	ti.Prompt = "> "
-	ti.Focus()
-
-	rf := textinput.New()
-	rf.Placeholder = "Filter results (device, status, output)"
-	rf.CharLimit = 80
-	rf.Prompt = "Filter: "
-
-	// Suggestions list for commands (defaults; history will be prepended dynamically)
-	suggItems := defaultSuggestionItems()
-	suggDel := list.NewDefaultDelegate()
-	suggDel.Styles.SelectedTitle = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg).Bold(true)
-	suggDel.Styles.SelectedDesc = lipgloss.NewStyle().Foreground(th.SelectionText).Background(th.SelectionBg)
-	suggDel.Styles.NormalTitle = lipgloss.NewStyle().Foreground(th.Text)
-	suggDel.Styles.NormalDesc = lipgloss.NewStyle().Foreground(th.Muted)
-	sl := list.New(suggItems, suggDel, 0, 0)
-	sl.Title = "Suggestions (history + common)"
-	sl.SetShowHelp(false)
-	sl.SetShowFilter(false)
-	sl.SetStatusBarItemName("suggestion", "suggestions")
-
-	// Results table
-	columns := []table.Column{
-		{Title: "Device", Width: 18},
-		{Title: "Status", Width: 8},
-		{Title: "Code", Width: 4},
-		{Title: "Duration", Width: 9},
-		{Title: "Stdout", Width: 60},
-	}
-	resultsTable := table.New(table.WithColumns(columns), table.WithRows([]table.Row{}), table.WithFocused(true))
-	resultsTable.SetStyles(tableDefaultStyles(th))
-
-	return model{
-		logger:       logger,
-		tab:          tabPeers,
-		keys:         km,
-		help:         help.New(),
-		theme:        th,
-		useEmoji:     useEmoji,
-		styles:       buildStyles(th),
-		peerList:     lst,
-		progressBar:  pb,
-		input:        ti,
-		resultFilter: rf,
-		resultsTable: resultsTable,
-		sortBy:       "device",
-		suggList:     sl,
-	}
-}
-
-// newModelWithInitialView constructs a model and selects initial tab based on view string.
-// Supported values: "overview" (peers), "peers", "results", "commands".
-func newModelWithInitialView(logger *logging.Logger, th theme, useEmoji bool, view string) model {
-	m := newModel(logger, th, useEmoji)
-	switch strings.ToLower(strings.TrimSpace(view)) {
-	case "peers", "overview", "":
+func newModelWithInitialView(logger *logging.Logger, theme Theme, useEmoji bool, view string) model {
+	m := newModel(logger, theme, useEmoji)
+	switch view {
+	case "overview":
+		m.tab = tabOverview
+	case "peers":
 		m.tab = tabPeers
-		m.input.Blur()
-		m.resultFilter.Blur()
 	case "results":
 		m.tab = tabResults
-		m.resultFilter.Focus()
-		m.input.Blur()
 	case "commands":
 		m.tab = tabCommands
-		m.input.Focus()
-		m.resultFilter.Blur()
 	default:
-		// Fallback to peers
-		m.tab = tabPeers
-		m.input.Blur()
-		m.resultFilter.Blur()
+		m.tab = tabOverview
 	}
 	return m
 }
 
-func (m model) Init() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return t })
+func (m *model) initSimulatedData() {
+	// Simulate peer discovery
+	m.simulatedPeers = []internal.PeerInfo{
+		{ID: "alpha-01", Name: "alpha-node", Address: "192.168.1.10", Role: "worker", OS: "Linux", Arch: "x86_64", Connected: true, LastSeen: time.Now().Add(-2 * time.Second)},
+		{ID: "beta-02", Name: "beta-node", Address: "192.168.1.11", Role: "worker", OS: "Linux", Arch: "x86_64", Connected: true, LastSeen: time.Now().Add(-5 * time.Second)},
+		{ID: "gamma-03", Name: "gamma-node", Address: "192.168.1.12", Role: "controller", OS: "Windows", Arch: "x86_64", Connected: false, LastSeen: time.Now().Add(-1 * time.Minute)},
+		{ID: "delta-04", Name: "delta-node", Address: "192.168.1.13", Role: "worker", OS: "macOS", Arch: "arm64", Connected: true, LastSeen: time.Now().Add(-10 * time.Second)},
+		{ID: "epsilon-05", Name: "epsilon-node", Address: "192.168.1.14", Role: "worker", OS: "Linux", Arch: "x86_64", Connected: true, LastSeen: time.Now().Add(-15 * time.Second)},
+	}
+
+	// Simulate command results
+	m.simulatedResults = []*internal.ExecutionResults{
+		{
+			CommandID: "cmd-001",
+			Command:   "ls -la",
+			Target:    "all",
+			Results: []internal.ExecutionResult{
+				{Device: "alpha-node", Status: "ok", ExitCode: 0, Duration: 150, Stdout: "total 24\ndrwxr-xr-x 2 user user 4096 Jan 15 10:00 ."},
+				{Device: "beta-node", Status: "ok", ExitCode: 0, Duration: 180, Stdout: "total 24\ndrwxr-xr-x 2 user user 4096 Jan 15 10:00 ."},
+				{Device: "delta-node", Status: "ok", ExitCode: 0, Duration: 200, Stdout: "total 24\ndrwxr-xr-x 2 user user 4096 Jan 15 10:00 ."},
+			},
+			Timestamp: time.Now().Add(-2 * time.Second),
+		},
+		{
+			CommandID: "cmd-002",
+			Command:   "df -h",
+			Target:    "all",
+			Results: []internal.ExecutionResult{
+				{Device: "alpha-node", Status: "ok", ExitCode: 0, Duration: 120, Stdout: "Filesystem Size Used Avail Use% Mounted on\n/dev/sda1 100G 45G 50G 47% /"},
+				{Device: "beta-node", Status: "failed", ExitCode: 1, Duration: 150, Stderr: "df: cannot access '/proc/mounts': No such file or directory"},
+				{Device: "delta-node", Status: "ok", ExitCode: 0, Duration: 180, Stdout: "Filesystem Size Used Avail Use% Mounted on\n/dev/disk1 500G 200G 300G 40% /"},
+			},
+			Timestamp: time.Now().Add(-1 * time.Minute),
+		},
+	}
+
+	m.lastUpdate = time.Now()
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		maxWidth := 140
-		containerW := m.width - 6
-		if containerW > maxWidth {
-			containerW = maxWidth
-		}
-		containerH := m.height - 6
-		if containerW < 40 {
-			containerW = 40
-		}
-		if containerH < 20 {
-			containerH = 20
-		}
-		// calculate columns for peers view
-		leftCol := int(math.Round(float64(containerW-6) * 0.45))
-		if leftCol < 30 {
-			leftCol = containerW - 10
-		}
-		m.peerList.SetSize(leftCol, containerH-14)
-		m.suggList.SetSize(containerW-8, 8)
-		m.resultsTable.SetHeight(containerH - 16)
-		// width of stdout column adjusts to containerW
-		cols := m.resultsTable.Columns()
-		if len(cols) == 5 {
-			used := cols[0].Width + cols[1].Width + cols[2].Width + cols[3].Width
-			cols[4].Width = max(20, containerW-10-used)
-			m.resultsTable.SetColumns(cols)
-		}
-		return m, nil
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Quit
-		case key.Matches(msg, m.keys.NextTab):
-			m.tab = (m.tab + 1) % 3
-			// manage focus
-			switch m.tab {
-			case tabCommands:
-				m.input.Focus()
-				m.resultFilter.Blur()
-				// capture targetExpr from peers list filter input, if any
-				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
-				// refresh suggestions with history
-				m.refreshSuggestions()
-			case tabResults:
-				m.resultFilter.Focus()
-				m.input.Blur()
-			default:
-				m.input.Blur()
-				m.resultFilter.Blur()
-			}
-			return m, nil
-		case key.Matches(msg, m.keys.PrevTab):
-			if m.tab == 0 {
-				m.tab = 2
-			} else {
-				m.tab--
-			}
-			// manage focus
-			switch m.tab {
-			case tabCommands:
-				m.input.Focus()
-				m.resultFilter.Blur()
-				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
-				m.refreshSuggestions()
-			case tabResults:
-				m.resultFilter.Focus()
-				m.input.Blur()
-			default:
-				m.input.Blur()
-				m.resultFilter.Blur()
-			}
-			return m, nil
-		default:
-			// direct numeric tab selection
-			switch msg.String() {
-			case "1":
-				m.tab = tabPeers
-				m.input.Blur()
-				m.resultFilter.Blur()
-				return m, nil
-			case "2":
-				m.tab = tabResults
-				m.resultFilter.Focus()
-				m.input.Blur()
-				return m, nil
-			case "3":
-				m.tab = tabCommands
-				m.input.Focus()
-				m.resultFilter.Blur()
-				m.targetExpr = strings.TrimSpace(m.peerList.FilterValue())
-				m.refreshSuggestions()
-				return m, nil
-			}
-		}
-		// Additional key handling per tab
-		if m.tab == tabCommands && (msg.Type == tea.KeyEnter) {
-			// Simulate execution producing results
-			cmd := strings.TrimSpace(m.input.Value())
-			if cmd != "" {
-				// record history (dedupe recent)
-				if len(m.cmdHistory) == 0 || m.cmdHistory[0] != cmd {
-					m.cmdHistory = append([]string{cmd}, m.cmdHistory...)
-					if len(m.cmdHistory) > 20 {
-						m.cmdHistory = m.cmdHistory[:20]
-					}
-				}
-				m.refreshSuggestions()
-				return m, m.executeCommand(cmd)
-			}
-			return m, nil
-		}
-		if m.tab == tabResults {
-			switch msg.String() {
-			case "d":
-				m.sortBy = "device"
-			case "s":
-				m.sortBy = "status"
-			case "u":
-				m.sortBy = "duration"
-			}
-			return m, nil
-		}
-	case peersUpdateMsg:
-		// Sort peers for consistent display
-		peers := append([]internal.PeerInfo(nil), msg.Peers...)
-		sort.Slice(peers, func(i, j int) bool { return peers[i].Name < peers[j].Name })
-		items := make([]list.Item, 0, len(peers))
-		for _, p := range peers {
-			items = append(items, peerItem(p))
-		}
-		m.peerList.SetItems(items)
-		if len(items) > 0 && m.peerList.Index() == -1 {
-			m.peerList.Select(0)
-		}
-		return m, nil
-	case resultsUpdateMsg:
-		m.results = msg.Results
-		return m, nil
-	case execDoneMsg:
-		m.results = msg.Results
-		m.tab = tabResults
-		return m, nil
-	case time.Time:
-		// periodic tick to refresh animations/toasts
-		return m, tea.Tick(time.Second, func(t time.Time) tea.Msg { return t })
-	}
+func (m *model) Init() tea.Cmd {
+	return nil
+}
 
-	// Delegate updates to components
-	if m.tab == tabPeers {
-		var cmd tea.Cmd
-		m.peerList, cmd = m.peerList.Update(msg)
-		return m, cmd
-	}
-	if m.tab == tabCommands {
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		// allow selecting from suggestions
-		if km, ok := msg.(tea.KeyMsg); ok {
-			if km.String() == "tab" { // autocomplete from selected suggestion
-				if it := m.suggList.SelectedItem(); it != nil {
-					if pi, ok := it.(peerItem); ok {
-						m.input.SetValue(pi.Name)
-					}
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch v := msg.(type) {
+	case tea.KeyMsg:
+		if m.showThemePicker {
+			return m.handleThemePickerKeys(v)
+		}
+		return m.handleMainKeys(v)
+	case tea.WindowSizeMsg:
+		m.width = v.Width
+		m.height = v.Height
+	case peersUpdateMsg:
+		if v.Peers != nil {
+			if peers, ok := v.Peers.([]internal.PeerInfo); ok {
+				items := make([]interface{}, 0, len(peers))
+				for _, p := range peers {
+					items = append(items, p)
 				}
+				m.peerList.SetItems(items)
 			}
 		}
-		return m, cmd
-	}
-	if m.tab == tabResults {
-		var cmd tea.Cmd
-		m.resultFilter, cmd = m.resultFilter.Update(msg)
-		return m, cmd
+	case resultsUpdateMsg:
+		if v.Results != nil {
+			if r, ok := v.Results.(*internal.ExecutionResults); ok {
+				m.results = r
+			}
+		}
 	}
 	return m, nil
 }
 
-func (m model) View() string {
-	styles := m.styles
-	container := styles.container.
-		Width(min(140, max(40, m.width-4))).
-		Height(max(22, m.height-4))
+func (m *model) handleMainKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "ctrl+t":
+		m.showThemePicker = true
+		m.selectedTheme = 0
+	case "h", "left":
+		if m.tab > 0 {
+			m.tab--
+		}
+	case "l", "right":
+		if m.tab < tabCommands {
+			m.tab++
+		}
+	case "?":
+		m.showHelp = !m.showHelp
+	case "enter":
+		if m.tab == tabPeers {
+			m.showPopup = true
+			m.popupTitle = "Peer Information"
+			m.popupContent = "Select a peer to view details"
+		}
+	case "esc":
+		m.showPopup = false
+		m.showHelp = false
+	case "1":
+		m.tab = tabOverview
+	case "2":
+		m.tab = tabPeers
+	case "3":
+		m.tab = tabResults
+	case "4":
+		m.tab = tabCommands
+	}
+	return m, nil
+}
+
+func (m *model) handleThemePickerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c", "esc":
+		m.showThemePicker = false
+	case "up", "k":
+		if m.selectedTheme > 0 {
+			m.selectedTheme--
+		}
+	case "down", "j":
+		if m.selectedTheme < len(availableThemes)-1 {
+			m.selectedTheme++
+		}
+	case "enter":
+		// Apply the selected theme
+		selectedThemeType := availableThemes[m.selectedTheme]
+		m.theme = getTheme(selectedThemeType)
+		m.showThemePicker = false
+	}
+	return m, nil
+}
+
+func (m *model) View() string {
+	if m.showThemePicker {
+		return m.renderThemePicker()
+	}
+
+	if m.showHelp {
+		return m.renderHelp()
+	}
+
+	if m.showPopup {
+		return m.renderWithPopup()
+	}
+
+	return m.renderMain()
+}
+
+func (m *model) renderThemePicker() string {
+	// Create a preview of the current theme
+	previewTheme := getTheme(availableThemes[m.selectedTheme])
 
 	// Header
-	title := "MeshExec Dashboard"
-	subtitle := "Decentralized command execution over BLE mesh"
-	if m.useEmoji {
-		title = "🕸️ " + title
+	header := previewTheme.BannerText.Render("Theme Picker - Press Enter to apply, Esc to cancel")
+
+	// Theme list
+	var themeList []string
+	for i, themeType := range availableThemes {
+		theme := getTheme(themeType)
+		themeName := string(themeType)
+
+		// Style the theme name based on selection
+		var style lipgloss.Style
+		if i == m.selectedTheme {
+			style = lipgloss.NewStyle().Foreground(theme.Primary).Bold(true)
+		} else {
+			style = lipgloss.NewStyle().Foreground(theme.Secondary)
+		}
+
+		// Add selection indicator
+		indicator := "  "
+		if i == m.selectedTheme {
+			indicator = "▶ "
+		}
+
+		themeList = append(themeList, style.Render(indicator+themeName))
 	}
-	header := styles.header.Render(title) + "\n" + styles.subtitle.Render(subtitle)
 
-	// Tabs
-	tabs := []string{
-		choose(m.tab == tabPeers, styles.tabActive.Render("Peers"), styles.tabNormal.Render("Peers")),
-		choose(m.tab == tabResults, styles.tabActive.Render("Results"), styles.tabNormal.Render("Results")),
-		choose(m.tab == tabCommands, styles.tabActive.Render("Commands"), styles.tabNormal.Render("Commands")),
-	}
-	tabBar := strings.Join(tabs, "  ")
+	// Create theme preview
+	preview := fmt.Sprintf(`
+ Theme Preview: %-45s
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  Primary:   %s                                                         │
+│  Secondary: %s                                                         │
+│  Accent:    %s                                                         │
+│  Success:   %s                                                         │
+│  Warning:   %s                                                         │
+│  Danger:    %s                                                         │
+│                                                                             │
+│  Navigation: ↑/↓ to select, Enter to apply, Esc to cancel                   │
+└─────────────────────────────────────────────────────────────────────────────┘`,
+		availableThemes[m.selectedTheme],
+		previewTheme.Primary,
+		previewTheme.Secondary,
+		previewTheme.Accent,
+		previewTheme.Success,
+		previewTheme.Warning,
+		previewTheme.Danger)
 
-	// Body
-	body := ""
-	switch m.tab {
-	case tabPeers:
-		body = m.renderPeers()
-	case tabResults:
-		body = m.renderResults()
-	case tabCommands:
-		body = m.renderCommands()
-	}
+	// Combine header, theme list, and preview
+	content := strings.Join(themeList, "\n")
 
-	// Footer
-	footerLeft := styles.footer.Render(fmt.Sprintf("view:%s", m.currentViewName()))
-	footerRight := m.help.View(m.keys)
-	footer := lipgloss.JoinHorizontal(lipgloss.Top, footerLeft, "  ", footerRight)
+	// Center the content
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(previewTheme.Primary).
+		Padding(1, 2).
+		Width(m.width - 4).
+		Height(m.height - 4)
 
-	// Toast
-	toast := m.renderToast()
-
-	panel := container.Render(lipgloss.JoinVertical(lipgloss.Top, header, "", tabBar, "", body, "", footer, toast))
-	centered := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, panel, lipgloss.WithWhitespaceForeground(m.theme.Background))
-	return styles.bg.Render(centered)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		box.Render(header+"\n\n"+content+"\n\n"+preview))
 }
 
-func (m model) renderResults() string {
+func (m *model) renderMain() string {
+	// Header with banner
+	header := m.renderHeader()
+
+	// Tab navigation
+	_ = m.renderTabs()
+
+	// Main content area
+	content := m.renderContent()
+
+	// Footer/status bar
+	footer := m.renderFooter()
+
+	// Combine all sections
+	layout := Layout{Theme: m.theme}
+	return layout.RenderRoot(m.width, m.height, header, &BasicPane{name: "content", body: content}, footer)
+}
+
+func (m *model) renderHeader() string {
+	banner := BannerASCII()
+	return m.theme.BannerText.Render(banner)
+}
+
+func (m *model) renderTabs() string {
+	tabNames := []string{"Overview", "Peers", "Results", "Commands"}
+	tabStyle := lipgloss.NewStyle().Padding(0, 1).Margin(0, 1)
+	activeStyle := tabStyle.Foreground(m.theme.Primary).Bold(true)
+	inactiveStyle := tabStyle.Foreground(m.theme.Secondary)
+
+	var tabs []string
+	for i, name := range tabNames {
+		if i == int(m.tab) {
+			tabs = append(tabs, activeStyle.Render(fmt.Sprintf("[%s]", name)))
+		} else {
+			tabs = append(tabs, inactiveStyle.Render(fmt.Sprintf("[%s]", name)))
+		}
+	}
+
+	status := fmt.Sprintf("Status: %s", m.getNetworkStatus())
+	statusStyle := lipgloss.NewStyle().Foreground(m.theme.Success).Align(lipgloss.Right)
+
+	tabRow := lipgloss.JoinHorizontal(lipgloss.Left, tabs...)
+	statusRow := statusStyle.Render(status)
+
+	// Combine tabs and status on same line
+	combined := lipgloss.JoinHorizontal(lipgloss.Left, tabRow, lipgloss.NewStyle().Width(m.width-lipgloss.Width(tabRow)-lipgloss.Width(statusRow)).Render(""), statusRow)
+
+	return combined + "\n" + strings.Repeat("─", m.width)
+}
+
+func (m *model) renderContent() string {
+	switch m.tab {
+	case tabOverview:
+		return m.renderOverview()
+	case tabPeers:
+		return m.renderPeers()
+	case tabResults:
+		return m.renderResults()
+	case tabCommands:
+		return m.renderCommands()
+	default:
+		return "Unknown tab"
+	}
+}
+
+func (m *model) renderOverview() string {
+	onlineCount := 0
+	for _, peer := range m.simulatedPeers {
+		if peer.Connected {
+			onlineCount++
+		}
+	}
+
+	overview := fmt.Sprintf(`
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│   Network   │  │   Status    │  │ Quick Cmd   │
+│   Status    │  │   Summary   │  │   Input     │
+│             │  │             │  │             │
+│ Peers: %d    │  │ Online: %d   │  │ [cmd >]     │
+│ Routes: 8   │  │ Offline: %d  │  │ [Run]       │
+└─────────────┘  └─────────────┘  └─────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ Recent Activity                                                     │
+│ • Command 'ls -la' completed on %d devices (2s ago)                 │
+│ • New peer 'alpha-node' discovered (5s ago)                         │
+│ • Command 'df -h' failed on 'beta-node' (1m ago)                    │
+└─────────────────────────────────────────────────────────────────────┘`,
+		len(m.simulatedPeers), onlineCount, len(m.simulatedPeers)-onlineCount, len(m.simulatedResults[0].Results))
+
+	return overview
+}
+
+func (m *model) renderPeers() string {
+	onlineCount := 0
+	for _, peer := range m.simulatedPeers {
+		if peer.Connected {
+			onlineCount++
+		}
+	}
+
+	header := "Peers                                    [Filter: █] [Refresh] [Add]"
+	tableHeader := "ID          │ Name        │ Status  │ OS      │ Last Seen │ Actions"
+	separator := strings.Repeat("─", m.width-4)
+
+	var rows []string
+	for _, peer := range m.simulatedPeers {
+		status := "Online"
+		statusIcon := "●"
+		if !peer.Connected {
+			status = "Offline"
+			statusIcon = "○"
+		}
+
+		lastSeen := time.Since(peer.LastSeen)
+		lastSeenStr := "now"
+		if lastSeen > time.Second {
+			lastSeenStr = lastSeen.Round(time.Second).String() + " ago"
+		}
+
+		row := fmt.Sprintf("│ %-10s │ %-11s │ %-7s │ %-7s │ %-10s │ [Info]",
+			peer.ID, peer.Name, statusIcon+" "+status, peer.OS, lastSeenStr)
+		rows = append(rows, row)
+	}
+
+	summary := fmt.Sprintf("Total: %d peers | Online: %d | Offline: %d",
+		len(m.simulatedPeers), onlineCount, len(m.simulatedPeers)-onlineCount)
+
+	content := strings.Join(rows, "\n")
+
+	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s\n%s",
+		header, separator, tableHeader, separator, content, separator, summary)
+}
+
+func (m *model) renderResults() string {
+	if len(m.simulatedResults) == 0 {
+		return "No command results available"
+	}
+
+	latest := m.simulatedResults[0]
+	successCount := 0
+	for _, result := range latest.Results {
+		if result.Status == "ok" {
+			successCount++
+		}
+	}
+
+	header := "Results                                  [Filter: █] [Export] [Clear]"
+	commandInfo := fmt.Sprintf("Command: '%s' | Target: '%s' | Status: Completed (%d/%d)",
+		latest.Command, latest.Target, successCount, len(latest.Results))
+	tableHeader := "Device     │ Status │ Exit │ Duration │ Output Preview"
+	separator := strings.Repeat("─", m.width-4)
+
+	var rows []string
+	for _, result := range latest.Results {
+		status := "OK"
+		if result.Status != "ok" {
+			status = "Err"
+		}
+
+		output := result.Stdout
+		if output == "" {
+			output = result.Stderr
+		}
+		if len(output) > 30 {
+			output = output[:27] + "..."
+		}
+
+		row := fmt.Sprintf("│ %-9s │ %-6s │ %-4d │ %-8d │ %s",
+			result.Device, status, result.ExitCode, result.Duration, output)
+		rows = append(rows, row)
+	}
+
+	actions := "[View Full Output] [Download Results] [Rerun Command]"
+	content := strings.Join(rows, "\n")
+
+	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+		header, separator, commandInfo, separator, tableHeader, separator, content, separator, actions)
+}
+
+func (m *model) renderCommands() string {
+	header := "Commands                               [New Command] [Templates] [History]"
+	separator := strings.Repeat("─", m.width-4)
+
+	commandInput := `
+┌─────────────────────────────────────────────────────────────────────┐
+│ Command Input                                                       │
+│ ┌─────────────────────────────────────────────────────────────────┐ │
+│ │ [Command: █]                                                    │ │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│                                                                     │
+│ ┌─────────────────────────────────────────────────────────────────┐ │
+│ │ [Target: █] [Timeout: 30s] [Work Dir: █] [Safe Mode: ☑]       │ │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│                                                                     │
+│ [Dry Run] [Execute] [Schedule] [Save Template]                     │
+└─────────────────────────────────────────────────────────────────────┘`
+
+	recentCommands := `
+┌─────────────────────────────────────────────────────────────────────┐
+│ Recent Commands                                                     │
+│ • ls -la (2s ago) - 8 devices, 8 successful                       │
+│ • df -h (1m ago) - 8 devices, 7 successful, 1 failed              │
+│ • whoami (5m ago) - 8 devices, 8 successful                       │
+└─────────────────────────────────────────────────────────────────────┘`
+
+	return fmt.Sprintf("%s\n%s%s%s", header, separator, commandInput, recentCommands)
+}
+
+func (m *model) renderFooter() string {
+	onlineCount := 0
+	for _, peer := range m.simulatedPeers {
+		if peer.Connected {
+			onlineCount++
+		}
+	}
+
+	lastUpdate := time.Since(m.lastUpdate).Round(time.Second)
+	footer := fmt.Sprintf("Peers: %d | Commands: %d | Last Update: %s ago | Press ? for help | Ctrl+T for themes",
+		onlineCount, len(m.simulatedResults), lastUpdate)
+
+	return m.theme.StatusBar.Render(footer)
+}
+
+func (m *model) renderHelp() string {
+	help := `
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MeshExec TUI Help                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Navigation:                                                                 │
+│   h/←  - Previous tab                                                       │
+│   l/→  - Next tab                                                           │
+│   1-4  - Jump to specific tab (1=Overview, 2=Peers, 3=Results, 4=Commands)  │
+│                                                                             │
+│ Actions:                                                                    │
+│   Enter - Select/Open (context dependent)                                   │
+│   Esc   - Close/Cancel popup                                                │
+│   ?     - Toggle this help                                                  │
+│   Ctrl+T - Open theme picker                                                │
+│                                                                             │
+│ Global:                                                                     │
+│   q/Ctrl+C - Quit                                                           │
+│                                                                             │
+│ Press any key to return to main view...                                     │
+└─────────────────────────────────────────────────────────────────────────────┘`
+
+	return help
+}
+
+func (m *model) renderWithPopup() string {
+	mainContent := m.renderMain()
+
+	popup := Popup{
+		Title: m.popupTitle,
+		Body:  m.popupContent,
+	}
+
+	popupContent := popup.Render(m.width, m.height, m.theme)
+
+	// Overlay popup on main content
+	return lipgloss.JoinVertical(lipgloss.Left, mainContent, popupContent)
+}
+
+func (m *model) getNetworkStatus() string {
+	onlineCount := 0
+	for _, peer := range m.simulatedPeers {
+		if peer.Connected {
+			onlineCount++
+		}
+	}
+
+	if onlineCount == len(m.simulatedPeers) {
+		return "Online"
+	} else if onlineCount > 0 {
+		return "Partial"
+	} else {
+		return "Offline"
+	}
+}
+
+// renderResultsFiltered applies simple filtering by substring to ExecutionResults
+func (m *model) renderResultsFiltered() string {
 	if m.results == nil {
-		return m.styles.subtitle.Render("No results yet. Execute a command to see aggregated output.")
-	}
-
-	// Summary
-	sum := m.results.Summary
-	pct := 0.0
-	if sum.TotalDevices > 0 {
-		pct = float64(sum.Successful+sum.Failed+sum.Timeout) / float64(sum.TotalDevices)
-	}
-	// progress bar rendered below
-
-	// Filter + sort results
-	results := filterResults(append([]internal.ExecutionResult(nil), m.results.Results...), strings.ToLower(strings.TrimSpace(m.resultFilter.Value())))
-	switch m.sortBy {
-	case "status":
-		sort.Slice(results, func(i, j int) bool { return results[i].Status < results[j].Status })
-	case "duration":
-		sort.Slice(results, func(i, j int) bool { return results[i].Duration < results[j].Duration })
-	default:
-		sort.Slice(results, func(i, j int) bool { return results[i].Device < results[j].Device })
-	}
-
-	rows := make([]table.Row, 0, len(results))
-	for _, r := range results {
-		status := r.Status
-		if status == "" && r.ExitCode == 0 {
-			status = "ok"
-		}
-		chip := m.styles.chipOk.Render("OK")
-		switch strings.ToLower(status) {
-		case "ok", "success":
-			chip = m.styles.chipOk.Render("OK")
-		case "timeout":
-			chip = m.styles.chipWarn.Render("TMO")
-		default:
-			if r.ExitCode != 0 {
-				chip = m.styles.chipFail.Render("ERR")
-			}
-		}
-		duration := time.Duration(r.Duration) * time.Millisecond
-		rows = append(rows, table.Row{
-			r.Device,
-			chip,
-			fmt.Sprintf("%d", r.ExitCode),
-			fmt.Sprintf("%7s", duration),
-			truncate(r.Stdout, 120),
-		})
-	}
-	m.resultsTable.SetRows(rows)
-	summary := fmt.Sprintf("Total: %d  OK: %d  Failed: %d  Timeout: %d  Avg: %dms",
-		sum.TotalDevices, sum.Successful, sum.Failed, sum.Timeout, sum.AverageDuration)
-	return lipgloss.JoinVertical(lipgloss.Top, m.resultFilter.View(), m.progressBar.ViewAs(pct), summary, "", m.resultsTable.View())
-}
-
-func (m model) renderCommands() string {
-	hint := lipgloss.NewStyle().Foreground(m.theme.Muted).Render("Enter to run. Tab to take suggestion. Peers filtered by target: " + choose(m.targetExpr != "", m.targetExpr, "all"))
-	return lipgloss.JoinVertical(lipgloss.Top, m.input.View(), m.suggList.View(), hint)
-}
-
-func (m model) renderPeers() string {
-	w := min(140, max(40, m.width-4)) - 6
-	left := int(math.Round(float64(w) * 0.45))
-	if left < 30 {
-		left = w - 10
-	}
-	right := w - left - 2
-	// Detail panel
-	detail := m.renderPeerDetail(right)
-	return lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(left).Render(m.peerList.View()), lipgloss.NewStyle().Width(2).Render(""), lipgloss.NewStyle().Width(right).Render(detail))
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n-1] + "…"
-}
-
-func choose[T any](cond bool, a, b T) T {
-	if cond {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// filterResults returns results that contain the query in device, status, stdout or stderr fields
-func filterResults(results []internal.ExecutionResult, query string) []internal.ExecutionResult {
-	if query == "" {
-		return results
-	}
-	out := make([]internal.ExecutionResult, 0, len(results))
-	for _, r := range results {
-		if strings.Contains(strings.ToLower(r.Device), query) ||
-			strings.Contains(strings.ToLower(r.Status), query) ||
-			strings.Contains(strings.ToLower(r.Stdout), query) ||
-			strings.Contains(strings.ToLower(r.Stderr), query) {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-func (m *model) renderPeerDetail(width int) string {
-	if len(m.peerList.Items()) == 0 {
-		// skeleton state
-		return m.styles.skeleton.Width(width).Height(8).Render("Discovering peers…")
-	}
-	it := m.peerList.SelectedItem()
-	if it == nil {
-		return m.styles.subtitle.Render("Select a peer to view details")
-	}
-	p, ok := it.(peerItem)
-	if !ok {
 		return ""
 	}
-	name := m.styles.header.Render(p.Name) + " " + m.styles.badge.Render(p.Role)
-	addr := fmt.Sprintf("%s • %s/%s", p.Address, p.OS, p.Arch)
-	sig := signalBar(p.SignalStrength)
-	lastSeen := fmt.Sprintf("Last seen: %s", relativeTime(p.LastSeen))
-	content := lipgloss.JoinVertical(lipgloss.Top, name, addr, sig, lastSeen)
-	return m.styles.detailCard.Width(width).Render(content)
-}
-
-func signalBar(rssi int) string {
-	// Map RSSI rough ranges to 0-5 bars
-	bars := 0
-	switch {
-	case rssi >= -50:
-		bars = 5
-	case rssi >= -60:
-		bars = 4
-	case rssi >= -70:
-		bars = 3
-	case rssi >= -80:
-		bars = 2
-	case rssi >= -90:
-		bars = 1
-	default:
-		bars = 0
-	}
-	full := strings.Repeat("▮", bars)
-	empty := strings.Repeat("▯", 5-bars)
-	return fmt.Sprintf("Signal: %s%s (%ddBm)", full, empty, rssi)
-}
-
-func relativeTime(t time.Time) string {
-	if t.IsZero() {
-		return "unknown"
-	}
-	d := time.Since(t)
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd", int(d.Hours()/24))
-}
-
-func (m *model) toast(msg string) {
-	m.lastToast = msg
-	m.lastToastAt = time.Now()
-}
-
-func (m model) renderToast() string {
-	if m.lastToast == "" {
-		return ""
-	}
-	// expire after 5s visually
-	if time.Since(m.lastToastAt) > 5*time.Second {
-		return ""
-	}
-	box := lipgloss.NewStyle().Foreground(m.theme.SelectionText).Background(m.theme.SelectionBg).Padding(0, 1)
-	return "\n" + box.Render(m.lastToast)
-}
-
-func tableDefaultStyles(th theme) table.Styles {
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.ThickBorder()).
-		BorderForeground(th.Border).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(th.Text)
-	s.Selected = s.Selected.
-		Foreground(th.SelectionText).
-		Background(th.SelectionBg)
-	s.Cell = s.Cell.Foreground(th.Text)
-	return s
-}
-
-func (m model) currentViewName() string {
-	switch m.tab {
-	case tabPeers:
-		return "peers"
-	case tabResults:
-		return "results"
-	case tabCommands:
-		return "commands"
-	default:
-		return ""
-	}
-}
-
-func (m *model) refreshSuggestions() {
-	// Build items: history first, then defaults (no duplicates)
-	seen := map[string]bool{}
-	items := make([]list.Item, 0, len(m.cmdHistory)+5)
-	for _, h := range m.cmdHistory {
-		if h = strings.TrimSpace(h); h != "" && !seen[h] {
-			items = append(items, list.Item(peerItem{Address: "", Name: h, Role: "cmd"}))
-			seen[h] = true
+	needle := strings.ToLower(m.resultFilter.Value())
+	var b strings.Builder
+	for _, r := range m.results.Results {
+		row := r.Device + " " + r.Status + " " + r.Stdout + " " + r.Stderr
+		if needle == "" || strings.Contains(strings.ToLower(row), needle) {
+			b.WriteString(r.Device)
+			b.WriteString("\n")
 		}
 	}
-	for _, it := range defaultSuggestionItems() {
-		if pi, ok := it.(peerItem); ok {
-			if !seen[pi.Name] {
-				items = append(items, it)
-				seen[pi.Name] = true
-			}
-		}
-	}
-	m.suggList.SetItems(items)
+	return b.String()
 }

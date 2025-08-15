@@ -32,12 +32,14 @@ type options struct {
 
 type Option func(*options)
 
-func defaultOptions() options { return options{initialView: "", themeName: "dark", useEmoji: true} }
+func defaultOptions() options {
+	return options{initialView: "", themeName: "dark", useEmoji: true, programOptions: []tea.ProgramOption{tea.WithAltScreen()}}
+}
 
 // WithInitialView sets the initial view key (e.g., "overview", "peers", "results")
 func WithInitialView(view string) Option { return func(o *options) { o.initialView = view } }
 
-// WithTheme selects a theme variant: "dark" (default), "light", or "hc" (high-contrast)
+// WithTheme selects a theme variant: "dark", "light", "hc", "ocean", "forest", "sunset", "cyberpunk", "retro", "monokai", "nord", "dracula", "solarized", "gruvbox", "tokyo", "candy"
 func WithTheme(name string) Option { return func(o *options) { o.themeName = name } }
 
 // WithEmoji toggles emoji/micro-icons usage
@@ -68,17 +70,17 @@ func (m *Manager) StartTUI(ctx context.Context, opts ...Option) error {
 		}
 	}
 
-	th := themeFor(cfg.themeName)
-	var model model
+	theme := getTheme(ThemeType(cfg.themeName))
+	var modelInstance model
 	if cfg.initialView != "" {
-		model = newModelWithInitialView(m.logger, th, cfg.useEmoji, cfg.initialView)
+		modelInstance = newModelWithInitialView(m.logger, theme, cfg.useEmoji, cfg.initialView)
 	} else {
-		model = newModel(m.logger, th, cfg.useEmoji)
+		modelInstance = newModel(m.logger, theme, cfg.useEmoji)
 	}
 	m.mu.Lock()
 	// Always include context; allow callers to provide additional tea.ProgramOption values
 	progOpts := append([]tea.ProgramOption{tea.WithContext(ctx)}, cfg.programOptions...)
-	m.program = tea.NewProgram(model, progOpts...)
+	m.program = tea.NewProgram(&modelInstance, progOpts...)
 	m.mu.Unlock()
 
 	// Watch for context cancellation and request quit

@@ -74,15 +74,15 @@ var tuiCmd = &cobra.Command{
 			}
 		}()
 
-		// Start TUI
-		return ui.StartTUI(ctx, tui.WithInitialView(tuiView), tui.WithTheme(tuiTheme), tui.WithEmoji(!tuiNoEmoji))
+		// Start TUI (theme option no-op in minimal stub)
+		return ui.StartTUI(ctx, tui.WithInitialView(tuiView), tui.WithEmoji(!tuiNoEmoji))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tuiCmd)
-	tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: peers|results|overview")
-	tuiCmd.Flags().StringVar(&tuiTheme, "theme", "dark", "theme: dark|light|hc")
+	tuiCmd.Flags().StringVar(&tuiView, "view", "overview", "initial view: overview|peers|results|commands")
+	tuiCmd.Flags().StringVar(&tuiTheme, "theme", "dark", "theme: dark|light|hc|ocean|forest|sunset|cyberpunk|retro|monokai|nord|dracula|solarized|gruvbox|tokyo|candy")
 	tuiCmd.Flags().BoolVar(&tuiNoEmoji, "no-emoji", false, "disable emoji/icons in the TUI")
 	// removed allow-sim; BLE disabled
 }

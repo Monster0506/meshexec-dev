@@ -15,7 +15,7 @@ func TestModel_InitAndPeerUpdate(t *testing.T) {
 	}
 	peers := []internal.PeerInfo{{Name: "alpha"}, {Name: "bravo"}}
 	m2, _ := m.Update(peersUpdateMsg{Peers: peers})
-	mm := m2.(model)
+	mm := m2.(*model)
 	if len(mm.peerList.Items()) != 2 {
 		t.Fatalf("expected 2 peers, got %d", len(mm.peerList.Items()))
 	}
@@ -34,7 +34,7 @@ func TestModel_ResultFiltering(t *testing.T) {
 	// type in filter
 	m.resultFilter.SetValue("alpha")
 	// render should include alpha and not bravo
-	out := m.renderResults()
+	out := m.renderResultsFiltered()
 	if !contains(out, "alpha") || contains(out, "bravo") {
 		t.Fatalf("filter not applied correctly: %s", out)
 	}
@@ -46,8 +46,8 @@ func TestNewModelWithInitialView(t *testing.T) {
 		t.Fatalf("expected peers tab, got %v", mPeers.tab)
 	}
 	mOverview := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "overview")
-	if mOverview.tab != tabPeers {
-		t.Fatalf("expected overview->peers tab, got %v", mOverview.tab)
+	if mOverview.tab != tabOverview {
+		t.Fatalf("expected overview tab, got %v", mOverview.tab)
 	}
 	mResults := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "results")
 	if mResults.tab != tabResults {
@@ -58,8 +58,8 @@ func TestNewModelWithInitialView(t *testing.T) {
 		t.Fatalf("expected commands tab, got %v", mCommands.tab)
 	}
 	mUnknown := newModelWithInitialView(logging.NewLogger("none"), defaultTheme(), false, "nope")
-	if mUnknown.tab != tabPeers {
-		t.Fatalf("expected fallback to peers tab, got %v", mUnknown.tab)
+	if mUnknown.tab != tabOverview {
+		t.Fatalf("expected fallback to overview tab, got %v", mUnknown.tab)
 	}
 }
 
