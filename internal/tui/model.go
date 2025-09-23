@@ -32,6 +32,14 @@ const (
 	outputTruncateLength   = maxOutputPreviewLength - len(outputTruncateSuffix)
 )
 
+// Table formatting settings for results view
+const (
+	deviceColumnWidth   = 9
+	statusColumnWidth   = 6
+	exitCodeColumnWidth = 4
+	durationColumnWidth = 8
+)
+
 // simple peer list placeholder compatible with tests
 type peerListModel struct {
 	items []interface{}
@@ -503,8 +511,12 @@ func (m *model) renderResults() string {
 			output = output[:outputTruncateLength] + outputTruncateSuffix
 		}
 
-		row := fmt.Sprintf("│ %-9s │ %-6s │ %-4d │ %-8d │ %s",
-			result.Device, status, result.ExitCode, result.Duration, output)
+		row := fmt.Sprintf("│ %-*s │ %-*s │ %-*d │ %-*d │ %s",
+			deviceColumnWidth, result.Device,
+			statusColumnWidth, status,
+			exitCodeColumnWidth, result.ExitCode,
+			durationColumnWidth, result.Duration,
+			output)
 		rows = append(rows, row)
 	}
 
