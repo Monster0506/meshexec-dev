@@ -1,4 +1,5 @@
 # Compiled Binaries, Executables, and Libraries
+meshexec
 *.exe
 *.exe~
 *.dll
