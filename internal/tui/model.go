@@ -25,6 +25,13 @@ const (
 	tabCommands
 )
 
+// Output preview settings
+const (
+	maxOutputPreviewLength = 30
+	outputTruncateSuffix   = "..."
+	outputTruncateLength   = maxOutputPreviewLength - len(outputTruncateSuffix)
+)
+
 // simple peer list placeholder compatible with tests
 type peerListModel struct {
 	items []interface{}
@@ -492,8 +499,8 @@ func (m *model) renderResults() string {
 		if output == "" {
 			output = result.Stderr
 		}
-		if len(output) > 30 {
-			output = output[:27] + "..."
+		if len(output) > maxOutputPreviewLength {
+			output = output[:outputTruncateLength] + outputTruncateSuffix
 		}
 
 		row := fmt.Sprintf("│ %-9s │ %-6s │ %-4d │ %-8d │ %s",

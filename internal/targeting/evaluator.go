@@ -431,15 +431,28 @@ func (e *Evaluator) evaluateAST(ast *internal.TargetAST, device *internal.Device
 	}
 }
 
-// evaluateCondition evaluates a single condition against device information
+// evaluateCondition evaluates a single condition against device information.
+// Supports device attributes: name, role, os, arch, and custom tags.
+// Comparisons are case-insensitive for better usability.
+// Returns false (not error) when tags don't exist to support negative matching.
 func (e *Evaluator) evaluateCondition(condition string, device *internal.DeviceInfo) (bool, error) {
 	parts := strings.SplitN(condition, "=", 2)
 	if len(parts) != 2 {
-		return false, fmt.Errorf("invalid condition format: %s", condition)
+		return false, fmt.Errorf("invalid condition format: %s (expected 'attribute=value')", condition)
 	}
 
 	attribute := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
+
+	// Validate attribute name
+	if attribute == "" {
+		return false, fmt.Errorf("attribute cannot be empty")
+	}
+
+	// Validate value
+	if value == "" {
+		return false, fmt.Errorf("invalid condition format: %s (value cannot be empty)", condition)
+	}
 
 	// Remove quotes from value if present
 	if len(value) >= 2 && (value[0] == '"' && value[len(value)-1] == '"') {
