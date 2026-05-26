@@ -1,4 +1,4 @@
-## **⚙️ Local DevOps Without Internet**
+## **Local DevOps Without Internet**
 
 **Use case**: A room full of Raspberry Pis or dev boards at a workshop
 
@@ -12,7 +12,7 @@
 
 ---
 
-## **🛰️ Disaster Relief / Off-Grid Ops**
+## **Disaster Relief / Off-Grid Ops**
 
 **Use case**: No Wi-Fi, no LTE, no satellites. You and your crew have laptops and sensors.
 
@@ -26,7 +26,7 @@
 
 ---
 
-## **💡 Smart Conference Badges**
+## **Smart Conference Badges**
 
 **Use case**: Conference badges with BLE and small CPUs
 
@@ -40,7 +40,7 @@
 
 ---
 
-## **📚 Classroom or Exam Hall Control**
+## **Classroom or Exam Hall Control**
 
 **Use case**: A teacher with 30 Raspberry Pis or tablets
 
@@ -60,7 +60,7 @@
 
 ---
 
-## **🛸 Drone/Robot Swarm Management**
+## **Drone/Robot Swarm Management**
 
 **Use case**: Multiple ESP32/robot units in the field
 
@@ -80,7 +80,7 @@
 
 ---
 
-## **🧪 Scientific Field Kits**
+## **Scientific Field Kits**
 
 **Use case**: A network of sensors in the jungle/lab/mine
 
@@ -94,21 +94,7 @@
 
 ---
 
-## **🕶️ Secret Agent Vibes**
-
-**Use case**: Leave behind instructions embedded in Bluetooth messages
-
-* Device joins the mesh at 3AM, receives a scheduled command:
-
-  ```
-  meshexec run --at="03:00" "wipe-logs"
-  ```
-
-**Effect**: Feels like cyberpunk magic. Air-gapped but coordinated.
-
----
-
-## **🎮 LAN-Party Controller**
+## **LAN-Party Controller**
 
 **Use case**: Control a local gaming session with friends
 
@@ -122,7 +108,7 @@
 
 ---
 
-## **🔄 Git Pull Party**
+## **Git Pull Party**
 
 **Use case**: Sync local clones of a repo between friends offline
 
@@ -142,7 +128,7 @@
 
 ---
 
-## **🧬 BioLab Mesh Orchestrator**
+## **BioLab Mesh Orchestrator**
 
 **Use case**: Lab full of microcontrollers controlling centrifuges, sensors, heaters
 
